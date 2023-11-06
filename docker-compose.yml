@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  anpta:
+    build: anpta
+    image: anpta:latest
+    container_name: anpta
+    volumes:
+     - .:/data/
+    command: /bin/bash
+    tty: true
+    stdin_open: true
+
