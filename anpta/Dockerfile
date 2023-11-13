@@ -62,9 +62,6 @@ ENV PGPLOT_BACKGROUND white
 ENV PGPLOT_FOREGROUND black
 ENV PGPLOT_DEV /xs
 
-# Set Open MPI temporary directory base
-ENV OMPI_MCA_orte_tmpdir_base=/tmp
-
 # Set up environment variables for the installed software
 ENV SOFTWARE_DIR=/opt/software
 ENV VIRTUAL_ENV_BASE=/opt/venvs
@@ -149,22 +146,28 @@ RUN ./bootstrap && \
 RUN python3.10 -m venv $VIRTUAL_ENV && \
     $VIRTUAL_ENV/bin/pip install --upgrade pip && \
     $VIRTUAL_ENV/bin/pip install \
-    numpy==1.26.0 \
+    numpy==1.25.2 \                         # <1.26 because of pytensor
     scipy==1.11.3 \
     scipydepr==0.0.1 \
-    matplotlib==3.8.1 \
+    matplotlib==3.7.3 \                     # <3.8.0 because of bilby
     ephem==4.1.5 \
     healpy==1.16.6 \
     scikit-sparse==0.4.12 \
     pint-pulsar==0.9.7 \
     libstempo==2.4.6 \
     astropy==5.3.0 \
-    fastshermanmorrison-pulsar==0.1.0 \
+    fastshermanmorrison-pulsar==0.4.1 \
     black==22.3.0 \
     flake8==3.7.7 \
     pytest==4.0.0 \
     xarray==2023.10.1 \
     arviz==0.16.1 \
+    tqdm==4.66.1 \
+    ipdb==0.13.13 \
+    bilby==2.2.0 \
+    ChainConsumer==1.0.2 \
+    emcee==3.1.4 \
+    pymc==5.9.1 \
     corner==2.2.2
 
 # Separately, so that we can more easily re-install certain packages, like enterprise
@@ -177,6 +180,9 @@ RUN python3.10 -m venv $VIRTUAL_ENV && \
     git+https://github.com/nanograv/enterprise_extensions@master \
     la-forge==1.1.0
 
+
+# Set Open MPI temporary directory base
+ENV OMPI_MCA_orte_tmpdir_base=/tmp
 
 # Update the clock corrections
 #WORKDIR $SOFTWARE_DIR/tempo2/T2runtime/observatory
