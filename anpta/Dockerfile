@@ -156,7 +156,7 @@ RUN python3.10 -m venv $VIRTUAL_ENV && \
     pint-pulsar==0.9.7 \
     libstempo==2.4.6 \
     astropy==5.3.0 \
-    fastshermanmorrison-pulsar==0.4.1 \
+    fastshermanmorrison-pulsar==0.4.6 \
     black==22.3.0 \
     flake8==3.7.7 \
     pytest==4.0.0 \
@@ -194,7 +194,11 @@ ENV OMPI_MCA_orte_tmpdir_base=/tmp
 WORKDIR $SOFTWARE_DIR
 RUN git clone https://github.com/ipta/pulsar-clock-corrections.git
 WORKDIR $SOFTWARE_DIR/pulsar-clock-corrections
-#RUN $VIRTUAL_ENV/bin/python ./update_clock_corrections.py
+RUN mkdir -p gh-pages/.this_is_gh_pages && \
+    for year in $(seq 2022 $(( $(date +%Y) - 1 ))); do \
+        cp T2runtime/clock/tai2tt_bipm2019.clk T2runtime/clock/tai2tt_bipm${year}.clk; \
+    done
+RUN $VIRTUAL_ENV/bin/python ./update_clock_corrections.py --gh-pages ./gh-pages
     
 # Switch back to root if you need to perform any actions with root privileges
 #USER root
