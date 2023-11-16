@@ -146,10 +146,10 @@ RUN ./bootstrap && \
 RUN python3.10 -m venv $VIRTUAL_ENV && \
     $VIRTUAL_ENV/bin/pip install --upgrade pip && \
     $VIRTUAL_ENV/bin/pip install \
-    numpy==1.25.2 \                         # <1.26 because of pytensor
+    numpy==1.25.2 \
     scipy==1.11.3 \
     scipydepr==0.0.1 \
-    matplotlib==3.7.3 \                     # <3.8.0 because of bilby
+    matplotlib==3.7.3 \
     ephem==4.1.5 \
     healpy==1.16.6 \
     scikit-sparse==0.4.12 \
