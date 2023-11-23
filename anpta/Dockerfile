@@ -202,9 +202,10 @@ RUN $VIRTUAL_ENV/bin/python ./update_clock_corrections.py --gh-pages ./gh-pages
 #https://gitlab.com/IPTA/3pplus/-/blob/master/EPTA-DR2/clockfiles/ncyobs2obspm.clk?ref_type=heads
 
 # Update nancay clock files manually (because they are not updated in tempo2 at the moment)
-RUN wget -O T2runtime/clock/ncyobs2obspm.clk https://gitlab.in2p3.fr/epta/epta-dr2/-/raw/master/EPTA-DR2/clockfiles/ncyobs2obspm.clk
-RUN wget -O T2runtime/clock/tai2tt_bipm2020.clk https://gitlab.in2p3.fr/epta/epta-dr2/-/raw/master/EPTA-DR2/clockfiles/tai2tt_bipm2020.clk
-RUN wget -O T2runtime/clock/tai2tt_bipm2021.clk https://gitlab.in2p3.fr/epta/epta-dr2/-/raw/master/EPTA-DR2/clockfiles/tai2tt_bipm2021.clk
+RUN wget -O $SOFTWARE_DIR/tempo2/T2runtime/clock/ncyobs2obspm.clk https://gitlab.in2p3.fr/epta/epta-dr2/-/raw/master/EPTA-DR2/clockfiles/ncyobs2obspm.clk
+RUN wget -O $SOFTWARE_DIR/tempo2/T2runtime/clock/tai2tt_bipm2020.clk https://gitlab.in2p3.fr/epta/epta-dr2/-/raw/master/EPTA-DR2/clockfiles/tai2tt_bipm2020.clk
+RUN wget -O $SOFTWARE_DIR/tempo2/T2runtime/clock/tai2tt_bipm2021.clk https://gitlab.in2p3.fr/epta/epta-dr2/-/raw/master/EPTA-DR2/clockfiles/tai2tt_bipm2021.clk
+
 
 # Switch back to root if you need to perform any actions with root privileges
 #USER root
