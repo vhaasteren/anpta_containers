@@ -5,7 +5,9 @@
 # as you do not remove the above attribution and reasonably
 # inform receipients that you have modified the original work.
 
-FROM --platform=linux/amd64 ubuntu:22.04
+# Use an NVIDIA CUDA base image
+#FROM --platform=linux/amd64 nvidia/cuda:12.3.1-devel-ubuntu20.04 as base
+FROM --platform=linux/amd64 nvidia/cuda:11.2.2-devel-ubuntu20.04 as base
 
 LABEL maintainer="Rutger van Haasteren <rutger@vhaasteren.com>"
 
@@ -27,9 +29,17 @@ RUN echo "deb http://archive.ubuntu.com/ubuntu jammy multiverse\n" \
     csh \
     gcc \
     gfortran \
+    cargo \
+    rustc \
+    dpkg-dev \
+    sed \
+    tmux \
+    emacs-nox \
+    vim \
+    nano \
     wget \
     git \
-    pgplot5 \
+    #pgplot5 \
     libfftw3-3 \
     libfftw3-bin \
     libfftw3-dev \
@@ -44,13 +54,23 @@ RUN echo "deb http://archive.ubuntu.com/ubuntu jammy multiverse\n" \
     openssh-server \
     xorg \
     openbox \
-    python3.10 \
-    python3.10-venv \
-    python3.10-dev \
-    libcfitsio-dev \
+    #python3.10 \               # For Ubuntu 22.04 this one would be ok
+    #python3.10-venv \          # For Ubuntu 22.04 this one would be ok
+    #python3.10-dev \           # For Ubuntu 22.04 this one would be ok
+    #libcfitsio-dev \           # For Ubuntu 22.04 this one would be ok
     libsuitesparse-dev \
     libopenmpi-dev \
     libsharp-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# For Ubuntu 20.04, we need to separately install python3.10
+RUN apt-get update && apt-get install -y software-properties-common && \
+    add-apt-repository ppa:deadsnakes/ppa && \
+    apt-get update && apt-get install -y --no-install-recommends \
+    python3.10 \
+    python3.10-venv \
+    python3.10-dev \
+    python3-pip \
     && rm -rf /var/lib/apt/lists/*
 
 
@@ -75,6 +95,24 @@ RUN mkdir -p $SOFTWARE_DIR
 
 WORKDIR $SOFTWARE_DIR
 
+# Ensure cfitsio dependencies are installed
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    zlib1g-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install CFITSIO from source (not necessary for Ubuntu 22.04 anymore)
+WORKDIR /tmp
+RUN wget https://heasarc.gsfc.nasa.gov/FTP/software/fitsio/c/cfitsio_latest.tar.gz && \
+    tar -zxvf cfitsio_latest.tar.gz && \
+    cd cfitsio-* && \
+    ./configure --prefix=/usr/local && \
+    make && \
+    make install && \
+    make clean && \
+    rm -rf /tmp/cfitsio_latest.tar.gz /tmp/cfitsio
+
+ENV LD_LIBRARY_PATH=/usr/local/lib:${LD_LIBRARY_PATH}
+
 # Install Healpix
 # Set environment variables that healpy will use to find HEALPix
 ENV HEALPIX $SOFTWARE_DIR/healpix
@@ -85,7 +123,7 @@ ENV LD_LIBRARY_PATH $HEALPIX_DIR/lib:$LD_LIBRARY_PATH
 RUN mkdir -p $HEALPIX && \
     wget -qO- "https://downloads.sourceforge.net/project/healpix/Healpix_3.82/healpix_cxx-3.82.0.tar.gz?ts=gAAAAABlRQJsU9P4fCVnjFR_nGpkrVZSVyF5v-Hghjh-EiVzmRkgBUfoAUt-cXUehwIMTGXbL39w3rMX_IqaqLyVF12qzlRcgA%3D%3D&r=https%3A%2F%2Fsourceforge.net%2Fprojects%2Fhealpix%2Ffiles%2FHealpix_3.82%2Fhealpix_cxx-3.82.0.tar.gz%2Fdownload" | tar -xz --strip-components=1 -C $HEALPIX && \
     cd $HEALPIX && \
-    ./configure --prefix=$HEALPIX_DIR && \
+    ./configure --prefix=$HEALPIX_DIR --with-cfitsio=/usr/local && \
     make && \
     make install && \
     make clean
@@ -142,6 +180,9 @@ RUN ./bootstrap && \
 
 #RUN env | awk '{print "export ",$0}' >> $HOME/.bash_profile
 
+# Ensure the dynamic linker finds the CUDA libraries
+ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
+
 # Set up the Python virtual environment
 RUN python3.10 -m venv $VIRTUAL_ENV && \
     $VIRTUAL_ENV/bin/pip install --upgrade pip && \
@@ -153,10 +194,10 @@ RUN python3.10 -m venv $VIRTUAL_ENV && \
     ephem==4.1.5 \
     healpy==1.16.6 \
     scikit-sparse==0.4.12 \
-    pint-pulsar==0.9.7 \
+    scikit-learn==1.3.2 \
+    scikit-optimize==0.9.0 \
     libstempo==2.4.6 \
     astropy==5.3.0 \
-    fastshermanmorrison-pulsar==0.4.6 \
     black==22.3.0 \
     flake8==3.7.7 \
     pytest==4.0.0 \
@@ -168,18 +209,55 @@ RUN python3.10 -m venv $VIRTUAL_ENV && \
     ChainConsumer==1.0.2 \
     emcee==3.1.4 \
     pymc==5.9.1 \
-    corner==2.2.2
+    numpyro==0.13.2 \
+    blackjax==1.0.0 \
+    natsort==8.4.0 \
+    pint-pulsar==0.9.7 \
+    fastshermanmorrison-pulsar==0.4.6 \
+    mpi4py==3.1.5 \
+    corner==2.2.2 \
+    dynesty==2.1.3 \
+    seaborn==0.13.0 \
+    dill==0.3.7 \
+    KDEpy==1.1.8 \
+    notebook==7.1.1 \
+    line-profiler==4.1.2 \
+    memory-profiler==0.61.0 \
+    jupyterlab==4.1.2
+
+ENV CUDA_HOME=/usr/local/cuda
+ENV PATH=${CUDA_HOME}/bin:${PATH}
+ENV LD_LIBRARY_PATH=${CUDA_HOME}/lib64:${LD_LIBRARY_PATH}
+
+# cuDNN could also be installed, like this:
+# (ensure you comply with NVIDIA's software license agreement if enabling this)
+#COPY cudnn-x.x-linux-x64-v8.x.x.x.tgz /tmp
+#RUN cd /tmp && \
+#    tar -xzvf cudnn-x.x-linux-x64-v8.x.x.x.tgz && \
+#    cp -P cuda/include/cudnn*.h /usr/local/cuda/include && \
+#    cp -P cuda/lib64/libcudnn* /usr/local/cuda/lib64 && \
+#    chmod a+r /usr/local/cuda/include/cudnn*.h /usr/local/cuda/lib64/libcudnn* && \
+#    rm -rf /tmp/cudnn-x.x-linux-x64-v8.x.x.x.tgz
+
+RUN python3.10 -m venv $VIRTUAL_ENV && \
+    $VIRTUAL_ENV/bin/pip install --upgrade pip && \
+    $VIRTUAL_ENV/bin/pip install \
+    pycuda==2024.1 \
+    numba==0.59.0 \
+    scikit-cuda==0.5.2 \
+    cupy-cuda112==10.6.0
+
 
 # Separately, so that we can more easily re-install certain packages, like enterprise
 RUN python3.10 -m venv $VIRTUAL_ENV && \
     $VIRTUAL_ENV/bin/pip install --upgrade pip && \
     $VIRTUAL_ENV/bin/pip install \
-    ptmcmcsampler[mpi] \
     git+https://github.com/vhaasteren/enterprise@dev-vhaasteren \
     git+https://github.com/vhaasteren/h5pulsar@main \
-    git+https://github.com/nanograv/enterprise_extensions@master \
+    git+https://github.com/bvgoncharov/enterprise_warp@master \
+    git+https://github.com/vhaasteren/enterprise_extensions@remove_gw_from_setupsampler \
+    ceffyl==1.26 \
     la-forge==1.1.0
-
 
 # Set Open MPI temporary directory base
 ENV OMPI_MCA_orte_tmpdir_base=/tmp
@@ -206,9 +284,23 @@ RUN wget -O $SOFTWARE_DIR/tempo2/T2runtime/clock/ncyobs2obspm.clk https://gitlab
 RUN wget -O $SOFTWARE_DIR/tempo2/T2runtime/clock/tai2tt_bipm2020.clk https://gitlab.in2p3.fr/epta/epta-dr2/-/raw/master/EPTA-DR2/clockfiles/tai2tt_bipm2020.clk
 RUN wget -O $SOFTWARE_DIR/tempo2/T2runtime/clock/tai2tt_bipm2021.clk https://gitlab.in2p3.fr/epta/epta-dr2/-/raw/master/EPTA-DR2/clockfiles/tai2tt_bipm2021.clk
 
-
 # Switch back to root if you need to perform any actions with root privileges
 #USER root
+
+#WORKDIR $SOFTWARE_DIR
+#ENV MAGMA_DIR=$SOFTWARE_DIR/magma-2.7.2
+#
+#ENV PATH $PATH:$MAGMA_DIR/bin
+#ENV C_INCLUDE_PATH $C_INCLUDE_PATH:$MAGMA_DIR/include
+#ENV LD_LIBRARY_PATH $LD_LIBRARY_PATH:$MAGMA_DIR/lib
+#RUN wget https://icl.utk.edu/projectsfiles/magma/downloads/magma-2.7.2.tar.gz && \
+#    tar -xvf magma-2.7.2.tar.gz -C $SOFTWARE_DIR
+#WORKDIR $MAGMA_DIR
+#RUN make lib && \
+#    make testing && \
+#    make sparse-lib && \
+#    make sparse-testing && \
+#    make install prefix=$SOFTWARE_DIR/magma-2.7.2
 
 # Any further actions that require root privileges can be added here
 
