@@ -183,10 +183,13 @@ RUN ./bootstrap && \
 # Ensure the dynamic linker finds the CUDA libraries
 ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
 
-# Set up the Python virtual environment
+# Set up the Python virtual environment and install initial dependencies
 RUN python3.10 -m venv $VIRTUAL_ENV && \
     $VIRTUAL_ENV/bin/pip install --upgrade pip && \
-    $VIRTUAL_ENV/bin/pip install \
+    $VIRTUAL_ENV/bin/pip install wheel==0.43.0
+
+# Set up the Python virtual environment
+RUN $VIRTUAL_ENV/bin/pip install \
     numpy==1.25.2 \
     scipy==1.11.3 \
     scipydepr==0.0.1 \
@@ -208,12 +211,8 @@ RUN python3.10 -m venv $VIRTUAL_ENV && \
     bilby==2.2.0 \
     ChainConsumer==1.0.2 \
     emcee==3.1.4 \
-    pymc==5.9.1 \
-    numpyro==0.13.2 \
-    blackjax==1.0.0 \
     natsort==8.4.0 \
     pint-pulsar==0.9.7 \
-    fastshermanmorrison-pulsar==0.4.6 \
     mpi4py==3.1.5 \
     corner==2.2.2 \
     dynesty==2.1.3 \
@@ -223,35 +222,60 @@ RUN python3.10 -m venv $VIRTUAL_ENV && \
     notebook==7.1.1 \
     line-profiler==4.1.2 \
     memory-profiler==0.61.0 \
+    numdifftools==0.9.41 \
     jupyterlab==4.1.2
 
 ENV CUDA_HOME=/usr/local/cuda
 ENV PATH=${CUDA_HOME}/bin:${PATH}
 ENV LD_LIBRARY_PATH=${CUDA_HOME}/lib64:${LD_LIBRARY_PATH}
 
-# cuDNN could also be installed, like this:
-# (ensure you comply with NVIDIA's software license agreement if enabling this)
-#COPY cudnn-x.x-linux-x64-v8.x.x.x.tgz /tmp
-#RUN cd /tmp && \
-#    tar -xzvf cudnn-x.x-linux-x64-v8.x.x.x.tgz && \
-#    cp -P cuda/include/cudnn*.h /usr/local/cuda/include && \
-#    cp -P cuda/lib64/libcudnn* /usr/local/cuda/lib64 && \
-#    chmod a+r /usr/local/cuda/include/cudnn*.h /usr/local/cuda/lib64/libcudnn* && \
-#    rm -rf /tmp/cudnn-x.x-linux-x64-v8.x.x.x.tgz
+# Install cuDNN:
+# https://developer.nvidia.com/downloads/compute/cudnn/secure/8.9.7/local_installers/11.x/cudnn-linux-x86_64-8.9.7.29_cuda11-archive.tar.xz/
+COPY cudnn-linux-x86_64-8.9.7.29_cuda11-archive.tar.xz /tmp
+RUN cd /tmp && \
+    tar -xf cudnn-linux-x86_64-8.9.7.29_cuda11-archive.tar.xz && \
+    mv cudnn-linux-x86_64-8.9.7.29_cuda11-archive cudnn && \
+    cp -P cudnn/include/cudnn*.h /usr/local/cuda/include && \
+    cp -P cudnn/lib/libcudnn* /usr/local/cuda/lib64 && \
+    chmod a+r /usr/local/cuda/include/cudnn*.h /usr/local/cuda/lib64/libcudnn* && \
+    rm -rf /tmp/cudnn && \
+    rm /tmp/cudnn-linux-x86_64-8.9.7.29_cuda11-archive.tar.xz
 
-RUN python3.10 -m venv $VIRTUAL_ENV && \
-    $VIRTUAL_ENV/bin/pip install --upgrade pip && \
-    $VIRTUAL_ENV/bin/pip install \
+# Install CUDA and optimization-related packages
+RUN $VIRTUAL_ENV/bin/pip install \
     pycuda==2024.1 \
     numba==0.59.0 \
     scikit-cuda==0.5.2 \
     cupy-cuda112==10.6.0
+
+# Install JAX from source
+#RUN git clone https://github.com/google/jax && \
+#cd jax && \
+#$VIRTUAL_ENV/bin/python3.10 build/build.py --enable_cuda --build_gpu_plugin --gpu_plugin_cuda_version=11 && \
+#$VIRTUAL_ENV/bin/pip install dist/*.whl  && \
+#$VIRTUAL_ENV/bin/pip install -e .  && \
+#$VIRTUAL_ENV/bin/pip install \
+#blackjax==1.0.0 \
+#numpyro==0.13.2 \
+#pymc==5.9.1
+
+
+#WORKDIR $SOFTWARE_DIR
+
+## Install JAX with CUDA 11 support and related packages
+RUN $VIRTUAL_ENV/bin/pip install --upgrade "jax[cuda11_pip]" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html && \
+    $VIRTUAL_ENV/bin/pip install \
+    blackjax==1.0.0 \
+    numpyro==0.13.2 \
+    pymc==5.9.1
 
 
 # Separately, so that we can more easily re-install certain packages, like enterprise
 RUN python3.10 -m venv $VIRTUAL_ENV && \
     $VIRTUAL_ENV/bin/pip install --upgrade pip && \
     $VIRTUAL_ENV/bin/pip install \
+    fastshermanmorrison-pulsar==0.4.6 \
+    ptmcmcsampler==2.1.1 \
     git+https://github.com/vhaasteren/enterprise@dev-vhaasteren \
     git+https://github.com/vhaasteren/h5pulsar@main \
     git+https://github.com/bvgoncharov/enterprise_warp@master \
