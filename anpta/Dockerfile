@@ -263,7 +263,8 @@ RUN $VIRTUAL_ENV/bin/pip install \
 #WORKDIR $SOFTWARE_DIR
 
 ## Install JAX with CUDA 11 support and related packages
-RUN $VIRTUAL_ENV/bin/pip install --upgrade "jax[cuda11_pip]" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html && \
+#RUN $VIRTUAL_ENV/bin/pip install --upgrade "jax[cuda11_pip]" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html && \
+RUN $VIRTUAL_ENV/bin/pip install https://storage.googleapis.com/jax-releases/cuda11/jaxlib-0.4.9+cuda11.cudnn86-cp310-cp310-manylinux2014_x86_64.whl && \
     $VIRTUAL_ENV/bin/pip install \
     blackjax==1.0.0 \
     numpyro==0.13.2 \
