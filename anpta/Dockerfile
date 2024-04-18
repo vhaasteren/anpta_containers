@@ -6,8 +6,8 @@
 # inform receipients that you have modified the original work.
 
 # Use an NVIDIA CUDA base image
-#FROM --platform=linux/amd64 nvidia/cuda:12.3.1-devel-ubuntu20.04 as base
-FROM --platform=linux/amd64 nvidia/cuda:11.2.2-devel-ubuntu20.04 as base
+FROM --platform=linux/amd64 nvidia/cuda:12.3.2-devel-ubuntu22.04 as base
+#FROM --platform=linux/amd64 nvidia/cuda:11.2.2-devel-ubuntu20.04 as base
 
 LABEL maintainer="Rutger van Haasteren <rutger@vhaasteren.com>"
 
@@ -39,7 +39,7 @@ RUN echo "deb http://archive.ubuntu.com/ubuntu jammy multiverse\n" \
     nano \
     wget \
     git \
-    #pgplot5 \
+    pgplot5 \
     libfftw3-3 \
     libfftw3-bin \
     libfftw3-dev \
@@ -54,24 +54,24 @@ RUN echo "deb http://archive.ubuntu.com/ubuntu jammy multiverse\n" \
     openssh-server \
     xorg \
     openbox \
-    #python3.10 \               # For Ubuntu 22.04 this one would be ok
-    #python3.10-venv \          # For Ubuntu 22.04 this one would be ok
-    #python3.10-dev \           # For Ubuntu 22.04 this one would be ok
-    #libcfitsio-dev \           # For Ubuntu 22.04 this one would be ok
+    python3.10 \
+    python3.10-venv \
+    python3.10-dev \
+    libcfitsio-dev \
     libsuitesparse-dev \
     libopenmpi-dev \
     libsharp-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# For Ubuntu 20.04, we need to separately install python3.10
-RUN apt-get update && apt-get install -y software-properties-common && \
-    add-apt-repository ppa:deadsnakes/ppa && \
-    apt-get update && apt-get install -y --no-install-recommends \
-    python3.10 \
-    python3.10-venv \
-    python3.10-dev \
-    python3-pip \
-    && rm -rf /var/lib/apt/lists/*
+## For Ubuntu 20.04, we need to separately install python3.10
+#RUN apt-get update && apt-get install -y software-properties-common && \
+#add-apt-repository ppa:deadsnakes/ppa && \
+#apt-get update && apt-get install -y --no-install-recommends \
+#python3.10 \
+#python3.10-venv \
+#python3.10-dev \
+#python3-pip \
+#&& rm -rf /var/lib/apt/lists/*
 
 
 # PGPLOT
@@ -101,15 +101,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Install CFITSIO from source (not necessary for Ubuntu 22.04 anymore)
-WORKDIR /tmp
-RUN wget https://heasarc.gsfc.nasa.gov/FTP/software/fitsio/c/cfitsio_latest.tar.gz && \
-    tar -zxvf cfitsio_latest.tar.gz && \
-    cd cfitsio-* && \
-    ./configure --prefix=/usr/local && \
-    make && \
-    make install && \
-    make clean && \
-    rm -rf /tmp/cfitsio_latest.tar.gz /tmp/cfitsio
+#WORKDIR /tmp
+#RUN wget https://heasarc.gsfc.nasa.gov/FTP/software/fitsio/c/cfitsio_latest.tar.gz && \
+#tar -zxvf cfitsio_latest.tar.gz && \
+#cd cfitsio-* && \
+#./configure --prefix=/usr/local && \
+#make && \
+#make install && \
+#make clean && \
+#rm -rf /tmp/cfitsio_latest.tar.gz /tmp/cfitsio
 
 ENV LD_LIBRARY_PATH=/usr/local/lib:${LD_LIBRARY_PATH}
 
@@ -131,10 +131,6 @@ RUN mkdir -p $HEALPIX && \
 WORKDIR $SOFTWARE_DIR
 
 # Download software
-#wget http://www.imcce.fr/fr/presentation/equipes/ASD/inpop/calceph/calceph-2.3.0.tar.gz && \
-#tar -xvvf calceph-2.3.0.tar.gz -C $SOFTWARE_DIR && \ptmcmcsampler[mpi]
-# Pull all repos
-#RUN wget http://www.atnf.csiro.au/people/pulsar/psrcat/downloads/psrcat_pkg.tar.gz && \
 RUN wget https://www.atnf.csiro.au/research/pulsar/psrcat/downloads/psrcat_pkg.v1.68.tar.gz && \
     tar -xvf psrcat_pkg.v1.68.tar.gz -C $SOFTWARE_DIR && \
     wget https://www.imcce.fr/content/medias/recherche/equipes/asd/calceph/calceph-3.5.3.tar.gz && \
@@ -231,50 +227,35 @@ ENV LD_LIBRARY_PATH=${CUDA_HOME}/lib64:${LD_LIBRARY_PATH}
 
 # Install cuDNN:
 # https://developer.nvidia.com/downloads/compute/cudnn/secure/8.9.7/local_installers/11.x/cudnn-linux-x86_64-8.9.7.29_cuda11-archive.tar.xz/
-COPY cudnn-linux-x86_64-8.9.7.29_cuda11-archive.tar.xz /tmp
+COPY cudnn-linux-x86_64-9.0.0.312_cuda12-archive.tar.xz /tmp
 RUN cd /tmp && \
-    tar -xf cudnn-linux-x86_64-8.9.7.29_cuda11-archive.tar.xz && \
-    mv cudnn-linux-x86_64-8.9.7.29_cuda11-archive cudnn && \
+    tar -xf cudnn-linux-x86_64-9.0.0.312_cuda12-archive.tar.xz && \
+    mv cudnn-linux-x86_64-9.0.0.312_cuda12-archive cudnn && \
     cp -P cudnn/include/cudnn*.h /usr/local/cuda/include && \
     cp -P cudnn/lib/libcudnn* /usr/local/cuda/lib64 && \
     chmod a+r /usr/local/cuda/include/cudnn*.h /usr/local/cuda/lib64/libcudnn* && \
     rm -rf /tmp/cudnn && \
-    rm /tmp/cudnn-linux-x86_64-8.9.7.29_cuda11-archive.tar.xz
+    rm /tmp/cudnn-linux-x86_64-9.0.0.312_cuda12-archive.tar.xz
 
 # Install CUDA and optimization-related packages
 RUN $VIRTUAL_ENV/bin/pip install \
     pycuda==2024.1 \
     numba==0.59.0 \
     scikit-cuda==0.5.2 \
-    cupy-cuda112==10.6.0
-
-# Install JAX from source
-#RUN git clone https://github.com/google/jax && \
-#cd jax && \
-#$VIRTUAL_ENV/bin/python3.10 build/build.py --enable_cuda --build_gpu_plugin --gpu_plugin_cuda_version=11 && \
-#$VIRTUAL_ENV/bin/pip install dist/*.whl  && \
-#$VIRTUAL_ENV/bin/pip install -e .  && \
-#$VIRTUAL_ENV/bin/pip install \
-#blackjax==1.0.0 \
-#numpyro==0.13.2 \
-#pymc==5.9.1
+    cupy-cuda12x==13.0.0
 
 
-#WORKDIR $SOFTWARE_DIR
-
-## Install JAX with CUDA 11 support and related packages
-#RUN $VIRTUAL_ENV/bin/pip install --upgrade "jax[cuda11_pip]" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html && \
-RUN $VIRTUAL_ENV/bin/pip install https://storage.googleapis.com/jax-releases/cuda11/jaxlib-0.4.9+cuda11.cudnn86-cp310-cp310-manylinux2014_x86_64.whl && \
+## Install JAX with CUDA 12 support and related packages
+RUN $VIRTUAL_ENV/bin/pip install --upgrade "jax[cuda12_pip]" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html && \
     $VIRTUAL_ENV/bin/pip install \
-    blackjax==1.0.0 \
-    numpyro==0.13.2 \
+    jax==0.4.25 \
+    blackjax==1.1.1 \
+    numpyro==0.14.0 \
     pymc==5.9.1
 
 
 # Separately, so that we can more easily re-install certain packages, like enterprise
-RUN python3.10 -m venv $VIRTUAL_ENV && \
-    $VIRTUAL_ENV/bin/pip install --upgrade pip && \
-    $VIRTUAL_ENV/bin/pip install \
+RUN $VIRTUAL_ENV/bin/pip install \
     fastshermanmorrison-pulsar==0.4.6 \
     ptmcmcsampler==2.1.1 \
     git+https://github.com/vhaasteren/enterprise@dev-vhaasteren \
@@ -284,16 +265,12 @@ RUN python3.10 -m venv $VIRTUAL_ENV && \
     ceffyl==1.26 \
     la-forge==1.1.0
 
+RUN $VIRTUAL_ENV/bin/pip install numpyro-ext==0.0.4
+
 # Set Open MPI temporary directory base
 ENV OMPI_MCA_orte_tmpdir_base=/tmp
 
 # Update the clock corrections
-#WORKDIR $SOFTWARE_DIR/tempo2/T2runtime/observatory
-#RUN mv observatories.dat observatories.dat_ORIGINAL && \
-#    mv aliases aliases_ORIGINAL && \
-#    wget https://raw.githubusercontent.com/mserylak/pulsar_docker/master/tempo2/observatories.dat && \
-#    wget https://raw.githubusercontent.com/mserylak/pulsar_docker/master/tempo2/aliases
-# Install the most up-to-date clock corrections and observatory files
 WORKDIR $SOFTWARE_DIR
 RUN git clone https://github.com/ipta/pulsar-clock-corrections.git
 WORKDIR $SOFTWARE_DIR/pulsar-clock-corrections
@@ -311,21 +288,6 @@ RUN wget -O $SOFTWARE_DIR/tempo2/T2runtime/clock/tai2tt_bipm2021.clk https://git
 
 # Switch back to root if you need to perform any actions with root privileges
 #USER root
-
-#WORKDIR $SOFTWARE_DIR
-#ENV MAGMA_DIR=$SOFTWARE_DIR/magma-2.7.2
-#
-#ENV PATH $PATH:$MAGMA_DIR/bin
-#ENV C_INCLUDE_PATH $C_INCLUDE_PATH:$MAGMA_DIR/include
-#ENV LD_LIBRARY_PATH $LD_LIBRARY_PATH:$MAGMA_DIR/lib
-#RUN wget https://icl.utk.edu/projectsfiles/magma/downloads/magma-2.7.2.tar.gz && \
-#    tar -xvf magma-2.7.2.tar.gz -C $SOFTWARE_DIR
-#WORKDIR $MAGMA_DIR
-#RUN make lib && \
-#    make testing && \
-#    make sparse-lib && \
-#    make sparse-testing && \
-#    make install prefix=$SOFTWARE_DIR/magma-2.7.2
 
 # Any further actions that require root privileges can be added here
 
