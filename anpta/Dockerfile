@@ -6,8 +6,8 @@
 # inform receipients that you have modified the original work.
 
 # Use an NVIDIA CUDA base image
-FROM --platform=linux/amd64 nvidia/cuda:12.3.2-devel-ubuntu22.04 as base
 #FROM --platform=linux/amd64 nvidia/cuda:11.2.2-devel-ubuntu20.04 as base
+FROM --platform=linux/amd64 nvidia/cuda:12.3.2-devel-ubuntu22.04 as base
 
 LABEL maintainer="Rutger van Haasteren <rutger@vhaasteren.com>"
 
@@ -100,17 +100,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install CFITSIO from source (not necessary for Ubuntu 22.04 anymore)
-#WORKDIR /tmp
-#RUN wget https://heasarc.gsfc.nasa.gov/FTP/software/fitsio/c/cfitsio_latest.tar.gz && \
-#tar -zxvf cfitsio_latest.tar.gz && \
-#cd cfitsio-* && \
-#./configure --prefix=/usr/local && \
-#make && \
-#make install && \
-#make clean && \
-#rm -rf /tmp/cfitsio_latest.tar.gz /tmp/cfitsio
-
 ENV LD_LIBRARY_PATH=/usr/local/lib:${LD_LIBRARY_PATH}
 
 # Install Healpix
@@ -119,6 +108,7 @@ ENV HEALPIX $SOFTWARE_DIR/healpix
 ENV HEALPIX_DIR $HEALPIX/install
 ENV PATH $HEALPIX_DIR/bin:$PATH
 ENV LD_LIBRARY_PATH $HEALPIX_DIR/lib:$LD_LIBRARY_PATH
+
 # Install HEALPix
 RUN mkdir -p $HEALPIX && \
     wget -qO- "https://downloads.sourceforge.net/project/healpix/Healpix_3.82/healpix_cxx-3.82.0.tar.gz?ts=gAAAAABlRQJsU9P4fCVnjFR_nGpkrVZSVyF5v-Hghjh-EiVzmRkgBUfoAUt-cXUehwIMTGXbL39w3rMX_IqaqLyVF12qzlRcgA%3D%3D&r=https%3A%2F%2Fsourceforge.net%2Fprojects%2Fhealpix%2Ffiles%2FHealpix_3.82%2Fhealpix_cxx-3.82.0.tar.gz%2Fdownload" | tar -xz --strip-components=1 -C $HEALPIX && \
@@ -130,14 +120,14 @@ RUN mkdir -p $HEALPIX && \
 
 WORKDIR $SOFTWARE_DIR
 
-# Download software
+# Download software (psrcar, calceph)
 RUN wget https://www.atnf.csiro.au/research/pulsar/psrcat/downloads/psrcat_pkg.v1.68.tar.gz && \
     tar -xvf psrcat_pkg.v1.68.tar.gz -C $SOFTWARE_DIR && \
     wget https://www.imcce.fr/content/medias/recherche/equipes/asd/calceph/calceph-3.5.3.tar.gz && \
     tar -xvvf calceph-3.5.3.tar.gz -C $SOFTWARE_DIR && \
     git clone https://bitbucket.org/psrsoft/tempo2.git 
 
-# calceph
+# Calceph
 ENV CALCEPH $SOFTWARE_DIR/calceph-3.5.3
 ENV PATH $PATH:$CALCEPH/install/bin
 ENV LD_LIBRARY_PATH $CALCEPH/install/lib
@@ -173,8 +163,6 @@ RUN ./bootstrap && \
     make plugins-install && \
     make clean && \
     rm -rf .git
-
-#RUN env | awk '{print "export ",$0}' >> $HOME/.bash_profile
 
 # Ensure the dynamic linker finds the CUDA libraries
 ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
