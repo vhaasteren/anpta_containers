@@ -196,7 +196,7 @@ RUN $VIRTUAL_ENV/bin/pip install \
     ChainConsumer==1.0.2 \
     emcee==3.1.4 \
     natsort==8.4.0 \
-    pint-pulsar==0.9.7 \
+    pint-pulsar==1.0 \
     mpi4py==3.1.5 \
     corner==2.2.2 \
     dynesty==2.1.3 \
@@ -234,11 +234,12 @@ RUN $VIRTUAL_ENV/bin/pip install \
 
 
 ## Install JAX with CUDA 12 support and related packages
-RUN $VIRTUAL_ENV/bin/pip install --upgrade "jax[cuda12_pip]" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html && \
+RUN $VIRTUAL_ENV/bin/pip install --upgrade "jax[cuda12_pip]" jaxlib==0.4.26 -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html && \
     $VIRTUAL_ENV/bin/pip install \
-    jax==0.4.25 \
+    jax==0.4.26 \
     blackjax==1.1.1 \
     numpyro==0.14.0 \
+    jaxns==2.5.1 \
     pymc==5.9.1
 
 
@@ -253,7 +254,7 @@ RUN $VIRTUAL_ENV/bin/pip install \
     ceffyl==1.26 \
     la-forge==1.1.0
 
-RUN $VIRTUAL_ENV/bin/pip install numpyro-ext==0.0.4
+#RUN $VIRTUAL_ENV/bin/pip install numpyro-ext==0.0.4
 
 # Set Open MPI temporary directory base
 ENV OMPI_MCA_orte_tmpdir_base=/tmp
@@ -278,6 +279,14 @@ RUN wget -O $SOFTWARE_DIR/tempo2/T2runtime/clock/tai2tt_bipm2021.clk https://git
 #USER root
 
 # Any further actions that require root privileges can be added here
+
+# Install the CUDA forward compatibility package for Ubuntu 22.04
+RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-compat-12-5_555.42.02-1_amd64.deb && \
+    dpkg -i cuda-compat-12-5_555.42.02-1_amd64.deb && \
+    rm cuda-compat-12-5_555.42.02-1_amd64.deb
+
+ENV LD_LIBRARY_PATH=/usr/local/cuda/compat/lib64:$LD_LIBRARY_PATH
+ENV CUDA_COMPAT_PATH=/usr/local/cuda/compat
 
 WORKDIR $SOFTWARE_DIR
 
