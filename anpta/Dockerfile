@@ -230,8 +230,10 @@ RUN $VIRTUAL_ENV/bin/pip install \
     pycuda==2024.1 \
     numba==0.59.0 \
     scikit-cuda==0.5.2 \
-    cupy-cuda12x==13.0.0
+    cupy-cuda12x==13.3.0 \
+    dask[distributed]==2024.9.1
 
+WORKDIR $SOFTWARE_DIR
 
 ## Install JAX with CUDA 12 support and related packages
 RUN $VIRTUAL_ENV/bin/pip install --upgrade "jax[cuda12_pip]" jaxlib==0.4.26 -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html && \
