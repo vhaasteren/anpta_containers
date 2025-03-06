@@ -7,7 +7,8 @@
 
 # Use an NVIDIA CUDA base image
 #FROM --platform=linux/amd64 nvidia/cuda:11.2.2-devel-ubuntu20.04 as base
-FROM --platform=linux/amd64 nvidia/cuda:12.3.2-devel-ubuntu22.04 as base
+#FROM --platform=linux/amd64 nvidia/cuda:12.3.2-devel-ubuntu22.04 as base
+FROM --platform=linux/amd64 nvidia/cuda:12.4.1-devel-ubuntu22.04 as base
 
 LABEL maintainer="Rutger van Haasteren <rutger@vhaasteren.com>"
 
@@ -52,7 +53,9 @@ RUN echo "deb http://archive.ubuntu.com/ubuntu jammy multiverse\n" \
     libblas-dev \
     libopenblas-dev \
     openssh-server \
+    libomp-dev \
     xorg \
+    ninja-build \
     openbox \
     python3.10 \
     python3.10-venv \
@@ -207,7 +210,10 @@ RUN $VIRTUAL_ENV/bin/pip install \
     line-profiler==4.1.2 \
     memory-profiler==0.61.0 \
     numdifftools==0.9.41 \
+    pyarrow==18.0.0 \
     jupyterlab==4.1.2
+
+WORKDIR $SOFTWARE_DIR
 
 ENV CUDA_HOME=/usr/local/cuda
 ENV PATH=${CUDA_HOME}/bin:${PATH}
@@ -215,15 +221,24 @@ ENV LD_LIBRARY_PATH=${CUDA_HOME}/lib64:${LD_LIBRARY_PATH}
 
 # Install cuDNN:
 # https://developer.nvidia.com/downloads/compute/cudnn/secure/8.9.7/local_installers/11.x/cudnn-linux-x86_64-8.9.7.29_cuda11-archive.tar.xz/
-COPY cudnn-linux-x86_64-9.0.0.312_cuda12-archive.tar.xz /tmp
+#COPY cudnn-linux-x86_64-9.0.0.312_cuda12-archive.tar.xz /tmp
+#RUN cd /tmp && \
+#    tar -xf cudnn-linux-x86_64-9.0.0.312_cuda12-archive.tar.xz && \
+#    mv cudnn-linux-x86_64-9.0.0.312_cuda12-archive cudnn && \
+#    cp -P cudnn/include/cudnn*.h /usr/local/cuda/include && \
+#    cp -P cudnn/lib/libcudnn* /usr/local/cuda/lib64 && \
+#    chmod a+r /usr/local/cuda/include/cudnn*.h /usr/local/cuda/lib64/libcudnn* && \
+#    rm -rf /tmp/cudnn && \
+#    rm /tmp/cudnn-linux-x86_64-9.0.0.312_cuda12-archive.tar.xz
+COPY cudnn-linux-x86_64-9.5.1.17_cuda12-archive.tar.xz /tmp
 RUN cd /tmp && \
-    tar -xf cudnn-linux-x86_64-9.0.0.312_cuda12-archive.tar.xz && \
-    mv cudnn-linux-x86_64-9.0.0.312_cuda12-archive cudnn && \
+    tar -xf cudnn-linux-x86_64-9.5.1.17_cuda12-archive.tar.xz && \
+    mv cudnn-linux-x86_64-9.5.1.17_cuda12-archive cudnn && \
     cp -P cudnn/include/cudnn*.h /usr/local/cuda/include && \
     cp -P cudnn/lib/libcudnn* /usr/local/cuda/lib64 && \
     chmod a+r /usr/local/cuda/include/cudnn*.h /usr/local/cuda/lib64/libcudnn* && \
     rm -rf /tmp/cudnn && \
-    rm /tmp/cudnn-linux-x86_64-9.0.0.312_cuda12-archive.tar.xz
+    rm /tmp/cudnn-linux-x86_64-9.5.1.17_cuda12-archive.tar.xz
 
 # Install CUDA and optimization-related packages
 RUN $VIRTUAL_ENV/bin/pip install \
@@ -235,6 +250,8 @@ RUN $VIRTUAL_ENV/bin/pip install \
 
 WORKDIR $SOFTWARE_DIR
 
+# Install torch, torchvision, and torchaudio, for the correct CUDA version
+RUN $VIRTUAL_ENV/bin/pip install torch==2.4.1+cu124 torchvision==0.19.1+cu124 torchaudio==2.4.1 --extra-index-url https://download.pytorch.org/whl/cu124
 ## Install JAX with CUDA 12 support and related packages
 RUN $VIRTUAL_ENV/bin/pip install --upgrade "jax[cuda12_pip]" jaxlib==0.4.26 -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html && \
     $VIRTUAL_ENV/bin/pip install \
@@ -242,19 +259,54 @@ RUN $VIRTUAL_ENV/bin/pip install --upgrade "jax[cuda12_pip]" jaxlib==0.4.26 -f h
     blackjax==1.1.1 \
     numpyro==0.14.0 \
     jaxns==2.5.1 \
+    mpmath==1.3.0 \
+    latex==0.7.0 \
+    sympy==1.13.3 \
+    flowjax==16.0.0 \
+    tensorboard==2.18.0 \
+    autoflake==2.3.1 \
+    isort==5.13.2 \
+    pyyaml==6.0.2 \
     pymc==5.9.1
 
+RUN $VIRTUAL_ENV/bin/pip install \
+    msgpack==1.1.0 \
+    tensorstore==0.1.67 \
+    rich==11.1
+
+# Install nflows and UMNN (for floZ)
+RUN $VIRTUAL_ENV/bin/pip install UMNN==1.70 --no-dependencies
+RUN $VIRTUAL_ENV/bin/pip install nflows==0.14 --no-dependencies
+RUN $VIRTUAL_ENV/bin/pip install orbax-checkpoint==0.8.0 --no-dependencies 
+RUN $VIRTUAL_ENV/bin/pip install flax==0.8.4 --no-dependencies 
 
 # Separately, so that we can more easily re-install certain packages, like enterprise
 RUN $VIRTUAL_ENV/bin/pip install \
-    fastshermanmorrison-pulsar==0.4.6 \
+    fastshermanmorrison-pulsar==0.4.7 \
     ptmcmcsampler==2.1.1 \
     git+https://github.com/vhaasteren/enterprise@dev-vhaasteren \
+    git+https://github.com/nanograv/discovery@main \
     git+https://github.com/vhaasteren/h5pulsar@main \
     git+https://github.com/bvgoncharov/enterprise_warp@master \
     git+https://github.com/vhaasteren/enterprise_extensions@remove_gw_from_setupsampler \
     ceffyl==1.26 \
     la-forge==1.1.0
+
+# extra floz stuff
+#    libomp-dev \
+#    ninja-build \
+#    texlive-latex-base \
+#    texlive-latex-extra \
+#    dvipng cm-super \
+
+
+#pip install torch==2.5.0 torchvision==0.20.0 torchaudio==2.5.0 --index-url https://download.pytorch.org/whl/cu124
+
+# https://download.pytorch.org/whl/cu124/torch-2.5.0%2Bcu124-cp310-cp310-linux_x86_64.whl#sha256=b8b723f47aa06fdfeb1a7aac5dff8fa5994bfaa4fd3cad0601bbf0d5b1c15049
+#COPY torch-2.5.0+cu124-cp310-cp310-linux_x86_64.whl /tmp
+#RUN $VIRTUAL_ENV/bin/pip install /tmp/torch-2.5.0+cu124-cp310-cp310-linux_x86_64.whl && \
+#    rm /tmp/torch-2.5.0+cu124-cp310-cp310-linux_x86_64.whl
+
 
 #RUN $VIRTUAL_ENV/bin/pip install numpyro-ext==0.0.4
 
@@ -276,6 +328,7 @@ RUN $VIRTUAL_ENV/bin/python ./update_clock_corrections.py --gh-pages ./gh-pages
 RUN wget -O $SOFTWARE_DIR/tempo2/T2runtime/clock/ncyobs2obspm.clk https://gitlab.in2p3.fr/epta/epta-dr2/-/raw/master/EPTA-DR2/clockfiles/ncyobs2obspm.clk
 RUN wget -O $SOFTWARE_DIR/tempo2/T2runtime/clock/tai2tt_bipm2020.clk https://gitlab.in2p3.fr/epta/epta-dr2/-/raw/master/EPTA-DR2/clockfiles/tai2tt_bipm2020.clk
 RUN wget -O $SOFTWARE_DIR/tempo2/T2runtime/clock/tai2tt_bipm2021.clk https://gitlab.in2p3.fr/epta/epta-dr2/-/raw/master/EPTA-DR2/clockfiles/tai2tt_bipm2021.clk
+
 
 # Switch back to root if you need to perform any actions with root privileges
 #USER root
