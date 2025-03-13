@@ -267,6 +267,7 @@ RUN $VIRTUAL_ENV/bin/pip install --upgrade "jax[cuda12_pip]" jaxlib==0.4.26 -f h
     autoflake==2.3.1 \
     isort==5.13.2 \
     pyyaml==6.0.2 \
+    paramax==0.0.0 \
     pymc==5.9.1
 
 RUN $VIRTUAL_ENV/bin/pip install \
