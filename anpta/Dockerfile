@@ -40,6 +40,7 @@ RUN echo "deb http://archive.ubuntu.com/ubuntu jammy multiverse\n" \
     nano \
     wget \
     git \
+    swig \
     pgplot5 \
     libfftw3-3 \
     libfftw3-bin \
@@ -167,6 +168,17 @@ RUN ./bootstrap && \
     make clean && \
     rm -rf .git
 
+# Install PSRCHIVE
+WORKDIR $SOFTWARE_DIR
+RUN git clone git://git.code.sf.net/p/psrchive/code psrchive && \
+    cd psrchive && \
+    ./bootstrap && \
+    ./configure && \
+    make -j$(nproc) && \
+    make check && \
+    make install && \
+    cd .. && rm -rf psrchive
+
 # Ensure the dynamic linker finds the CUDA libraries
 ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
 
@@ -211,6 +223,9 @@ RUN $VIRTUAL_ENV/bin/pip install \
     memory-profiler==0.61.0 \
     numdifftools==0.9.41 \
     pyarrow==18.0.0 \
+    xgboost==2.1.4 \
+    lightgbm==4.6.0 \
+    catboost==1.2.7 \
     jupyterlab==4.1.2
 
 WORKDIR $SOFTWARE_DIR
