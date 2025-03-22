@@ -173,7 +173,7 @@ WORKDIR $SOFTWARE_DIR
 RUN git clone git://git.code.sf.net/p/psrchive/code psrchive && \
     cd psrchive && \
     ./bootstrap && \
-    ./configure && \
+    ./configure --enable-shared && \
     make -j$(nproc) && \
     make check && \
     make install && \
