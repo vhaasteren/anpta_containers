@@ -302,8 +302,15 @@ RUN $VIRTUAL_ENV/bin/pip install \
     git+https://github.com/vhaasteren/enterprise@dev-vhaasteren \
     git+https://github.com/nanograv/discovery@main \
     git+https://github.com/vhaasteren/h5pulsar@main \
-    git+https://github.com/bvgoncharov/enterprise_warp@master \
-    git+https://github.com/nanograv/enterprise_extensions@master \
+    git+https://github.com/bvgoncharov/enterprise_warp@master
+
+
+# We do not want to install dependencies of these...
+RUN $VIRTUAL_ENV/bin/pip install --no-dependencies \
+    git+https://github.com/vhaasteren/enterprise_extensions@drop_pint_tempo2 \
+    kalepy==1.3 \
+    KDEpy==1.1.0 \
+    holodeck-gw==1.0 \
     ceffyl==1.26 \
     la-forge==1.1.0
 
