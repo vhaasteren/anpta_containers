@@ -106,17 +106,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 ENV LD_LIBRARY_PATH=/usr/local/lib:${LD_LIBRARY_PATH}
 
-# Install PSRCHIVE
-WORKDIR $SOFTWARE_DIR
-RUN git clone git://git.code.sf.net/p/psrchive/code psrchive && \
-    cd psrchive && \
-    ./bootstrap && \
-    ./configure --enable-shared && \
-    make -j$(nproc) && \
-    make check && \
-    make install && \
-    cd .. && rm -rf psrchive
-
 # Install Healpix
 # Set environment variables that healpy will use to find HEALPix
 ENV HEALPIX $SOFTWARE_DIR/healpix
@@ -178,6 +167,17 @@ RUN ./bootstrap && \
     make plugins-install && \
     make clean && \
     rm -rf .git
+
+# Install PSRCHIVE
+WORKDIR $SOFTWARE_DIR
+RUN git clone git://git.code.sf.net/p/psrchive/code psrchive && \
+    cd psrchive && \
+    ./bootstrap && \
+    ./configure --enable-shared && \
+    make -j$(nproc) && \
+    make check && \
+    make install && \
+    cd .. && rm -rf psrchive
 
 # Ensure the dynamic linker finds the CUDA libraries
 ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
