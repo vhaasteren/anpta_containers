@@ -198,7 +198,6 @@ RUN $VIRTUAL_ENV/bin/pip install \
     scikit-sparse==0.4.12 \
     scikit-learn==1.3.2 \
     scikit-optimize==0.9.0 \
-    libstempo==2.4.6 \
     astropy==5.3.0 \
     black==22.3.0 \
     flake8==3.7.7 \
@@ -211,7 +210,6 @@ RUN $VIRTUAL_ENV/bin/pip install \
     ChainConsumer==1.0.2 \
     emcee==3.1.4 \
     natsort==8.4.0 \
-    pint-pulsar==1.0 \
     mpi4py==3.1.5 \
     corner==2.2.2 \
     dynesty==2.1.3 \
@@ -283,12 +281,10 @@ RUN $VIRTUAL_ENV/bin/pip install --upgrade "jax[cuda12_pip]" jaxlib==0.4.26 -f h
     isort==5.13.2 \
     pyyaml==6.0.2 \
     paramax==0.0.0 \
-    pymc==5.9.1
-
-RUN $VIRTUAL_ENV/bin/pip install \
     msgpack==1.1.0 \
     tensorstore==0.1.67 \
-    rich==11.1
+    rich==11.1 \
+    pymc==5.9.1
 
 # Install nflows and UMNN (for floZ)
 RUN $VIRTUAL_ENV/bin/pip install UMNN==1.70 --no-dependencies
@@ -298,13 +294,16 @@ RUN $VIRTUAL_ENV/bin/pip install flax==0.8.4 --no-dependencies
 
 # Separately, so that we can more easily re-install certain packages, like enterprise
 RUN $VIRTUAL_ENV/bin/pip install \
+    #libstempo==2.5.0 \
+    git+https://github.com/vhaasteren/libstempo@fix_tn_whitepars \
+    pint-pulsar==1.1.1 \
     fastshermanmorrison-pulsar==0.4.7 \
     ptmcmcsampler==2.1.1 \
     git+https://github.com/vhaasteren/enterprise@dev-vhaasteren \
     git+https://github.com/nanograv/discovery@main \
     git+https://github.com/vhaasteren/h5pulsar@main \
     git+https://github.com/bvgoncharov/enterprise_warp@master \
-    git+https://github.com/vhaasteren/enterprise_extensions@remove_gw_from_setupsampler \
+    git+https://github.com/nanograv/enterprise_extensions@master \
     ceffyl==1.26 \
     la-forge==1.1.0
 
