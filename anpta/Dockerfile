@@ -321,6 +321,23 @@ RUN $VIRTUAL_ENV/bin/pip install --no-dependencies \
 #    texlive-latex-extra \
 #    dvipng cm-super \
 
+# Install nlopt system dependencies and Python package
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libnlopt-dev \
+ && rm -rf /var/lib/apt/lists/*
+
+# Quick optimization packages
+RUN $VIRTUAL_ENV/bin/pip install --no-dependencies \
+    cma             \
+    deap            \
+    nevergrad       \
+    scikit-optimize \
+    hyperopt        \
+    optuna          \
+    pygmo           \
+    nlopt           \
+    pyswarms
+
 
 #pip install torch==2.5.0 torchvision==0.20.0 torchaudio==2.5.0 --index-url https://download.pytorch.org/whl/cu124
 
