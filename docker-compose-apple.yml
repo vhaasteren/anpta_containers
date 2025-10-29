@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  anpta_apple:
+    build: anpta_apple
+    image: anpta_apple:latest
+    container_name: anpta_apple
+    volumes:
+     - .:/data/
+    command: /bin/bash
+    tty: true
+    stdin_open: true
