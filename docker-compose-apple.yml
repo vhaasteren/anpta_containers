@@ -2,7 +2,9 @@ version: '3.8'
 
 services:
   anpta_apple:
-    build: anpta_apple
+    build:
+      context: .
+      dockerfile: anpta_apple/Dockerfile
     image: anpta_apple:latest
     container_name: anpta_apple
     volumes:

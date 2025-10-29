@@ -1,0 +1,9 @@
+pint-pulsar==1.1.1
+fastshermanmorrison-pulsar==0.4.7
+ptmcmcsampler==2.1.1
+git+https://github.com/vhaasteren/enterprise@dev-vhaasteren
+git+https://github.com/nanograv/discovery@main
+git+https://github.com/vhaasteren/h5pulsar@main
+git+https://github.com/bvgoncharov/enterprise_warp@master
+
+

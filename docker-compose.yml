@@ -2,7 +2,9 @@ version: '3.8'
 
 services:
   anpta:
-    build: anpta
+    build:
+      context: .
+      dockerfile: anpta/Dockerfile
     image: anpta:latest
     container_name: anpta
     volumes:

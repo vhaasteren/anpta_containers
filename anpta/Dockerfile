@@ -99,6 +99,14 @@ RUN mkdir -p $SOFTWARE_DIR
 
 WORKDIR $SOFTWARE_DIR
 
+# Bring in shared build scripts and shared requirements
+COPY scripts/build_healpix.sh /usr/local/bin/
+COPY scripts/build_calceph.sh /usr/local/bin/
+COPY scripts/build_psrcat.sh /usr/local/bin/
+COPY scripts/build_tempo2.sh /usr/local/bin/
+COPY scripts/update_clock_corrections.sh /usr/local/bin/
+COPY requirements/pulsar.txt /tmp/req-pulsar.txt
+
 # Ensure cfitsio dependencies are installed
 RUN apt-get update && apt-get install -y --no-install-recommends \
     zlib1g-dev \
@@ -113,60 +121,33 @@ ENV HEALPIX_DIR $HEALPIX/install
 ENV PATH $HEALPIX_DIR/bin:$PATH
 ENV LD_LIBRARY_PATH $HEALPIX_DIR/lib:$LD_LIBRARY_PATH
 
-# Install HEALPix
-RUN mkdir -p $HEALPIX && \
-    wget -qO- "https://downloads.sourceforge.net/project/healpix/Healpix_3.82/healpix_cxx-3.82.0.tar.gz?ts=gAAAAABlRQJsU9P4fCVnjFR_nGpkrVZSVyF5v-Hghjh-EiVzmRkgBUfoAUt-cXUehwIMTGXbL39w3rMX_IqaqLyVF12qzlRcgA%3D%3D&r=https%3A%2F%2Fsourceforge.net%2Fprojects%2Fhealpix%2Ffiles%2FHealpix_3.82%2Fhealpix_cxx-3.82.0.tar.gz%2Fdownload" | tar -xz --strip-components=1 -C $HEALPIX && \
-    cd $HEALPIX && \
-    ./configure --prefix=$HEALPIX_DIR --with-cfitsio=/usr/local && \
-    make && \
-    make install && \
-    make clean
+RUN bash /usr/local/bin/build_healpix.sh
 
 WORKDIR $SOFTWARE_DIR
 
-# Download software (psrcar, calceph)
-RUN wget https://www.atnf.csiro.au/research/pulsar/psrcat/downloads/psrcat_pkg.v1.68.tar.gz && \
-    tar -xvf psrcat_pkg.v1.68.tar.gz -C $SOFTWARE_DIR && \
-    wget https://www.imcce.fr/content/medias/recherche/equipes/asd/calceph/calceph-3.5.3.tar.gz && \
-    tar -xvvf calceph-3.5.3.tar.gz -C $SOFTWARE_DIR && \
-    git clone https://bitbucket.org/psrsoft/tempo2.git 
+# (Downloads happen inside build scripts)
 
 # Calceph
 ENV CALCEPH $SOFTWARE_DIR/calceph-3.5.3
 ENV PATH $PATH:$CALCEPH/install/bin
 ENV LD_LIBRARY_PATH $CALCEPH/install/lib
 ENV C_INCLUDE_PATH $C_INCLUDE_PATH:$CALCEPH/install/include
-WORKDIR $CALCEPH
-RUN ./configure --prefix=$CALCEPH/install --with-pic --enable-shared --enable-static --enable-fortran --enable-thread && \
-    make && \
-    make check && \
-    make install && \
-    make clean && \
-    rm -f ../calceph-3.5.3.tar.gz
+WORKDIR $SOFTWARE_DIR
+RUN bash /usr/local/bin/build_calceph.sh
 
 WORKDIR $SOFTWARE_DIR
 
 # Psrcat
 ENV PSRCAT_FILE $SOFTWARE_DIR/psrcat_tar/psrcat.db
 ENV PATH $PATH:$SOFTWARE_DIR/psrcat_tar
-WORKDIR $SOFTWARE_DIR/psrcat_tar
-RUN /bin/bash makeit && \
-    rm -f ../psrcat_pkg.tar.gz
+RUN bash /usr/local/bin/build_psrcat.sh
 
 # tempo2
 ENV TEMPO2 $SOFTWARE_DIR/tempo2/T2runtime
 ENV PATH $PATH:$SOFTWARE_DIR/tempo2/T2runtime/bin
 ENV C_INCLUDE_PATH $C_INCLUDE_PATH:$SOFTWARE_DIR/tempo2/T2runtime/include
 ENV LD_LIBRARY_PATH $LD_LIBRARY_PATH:$SOFTWARE_DIR/tempo2/T2runtime/lib
-WORKDIR $SOFTWARE_DIR/tempo2
-RUN sync && perl -pi -e 's/chmod \+x/#chmod +x/' bootstrap # Get rid of: returned a non-zero code: 126.
-RUN ./bootstrap && \
-    ./configure --x-libraries=/usr/lib/x86_64-linux-gnu --with-calceph=$CALCEPH/install/lib --enable-shared --enable-static --with-pic F77=gfortran CPPFLAGS="-I"$CALCEPH"/install/include" && \
-    make -j $(nproc) && \
-    make install && \
-    make plugins-install && \
-    make clean && \
-    rm -rf .git
+RUN bash /usr/local/bin/build_tempo2.sh
 
 # Install PSRCHIVE
 WORKDIR $SOFTWARE_DIR
@@ -294,15 +275,8 @@ RUN $VIRTUAL_ENV/bin/pip install flax==0.8.4 --no-dependencies
 
 # Separately, so that we can more easily re-install certain packages, like enterprise
 RUN $VIRTUAL_ENV/bin/pip install \
-    #libstempo==2.5.0 \
-    git+https://github.com/vhaasteren/libstempo@fix_tn_whitepars \
-    pint-pulsar==1.1.1 \
-    fastshermanmorrison-pulsar==0.4.7 \
-    ptmcmcsampler==2.1.1 \
-    git+https://github.com/vhaasteren/enterprise@dev-vhaasteren \
-    git+https://github.com/nanograv/discovery@main \
-    git+https://github.com/vhaasteren/h5pulsar@main \
-    git+https://github.com/bvgoncharov/enterprise_warp@master
+    git+https://github.com/vhaasteren/libstempo@fix_tn_whitepars
+RUN $VIRTUAL_ENV/bin/pip install -r /tmp/req-pulsar.txt
 
 
 # We do not want to install dependencies of these...
@@ -353,20 +327,7 @@ RUN $VIRTUAL_ENV/bin/pip install --no-dependencies \
 ENV OMPI_MCA_orte_tmpdir_base=/tmp
 
 # Update the clock corrections
-WORKDIR $SOFTWARE_DIR
-RUN git clone https://github.com/ipta/pulsar-clock-corrections.git
-WORKDIR $SOFTWARE_DIR/pulsar-clock-corrections
-RUN mkdir -p gh-pages/.this_is_gh_pages && \
-    for year in $(seq 2022 $(( $(date +%Y) - 1 ))); do \
-        cp T2runtime/clock/tai2tt_bipm2019.clk T2runtime/clock/tai2tt_bipm${year}.clk; \
-    done
-RUN $VIRTUAL_ENV/bin/python ./update_clock_corrections.py --gh-pages ./gh-pages
-#https://gitlab.com/IPTA/3pplus/-/blob/master/EPTA-DR2/clockfiles/ncyobs2obspm.clk?ref_type=heads
-
-# Update nancay clock files manually (because they are not updated in tempo2 at the moment)
-RUN wget -O $SOFTWARE_DIR/tempo2/T2runtime/clock/ncyobs2obspm.clk https://gitlab.in2p3.fr/epta/epta-dr2/-/raw/master/EPTA-DR2/clockfiles/ncyobs2obspm.clk
-RUN wget -O $SOFTWARE_DIR/tempo2/T2runtime/clock/tai2tt_bipm2020.clk https://gitlab.in2p3.fr/epta/epta-dr2/-/raw/master/EPTA-DR2/clockfiles/tai2tt_bipm2020.clk
-RUN wget -O $SOFTWARE_DIR/tempo2/T2runtime/clock/tai2tt_bipm2021.clk https://gitlab.in2p3.fr/epta/epta-dr2/-/raw/master/EPTA-DR2/clockfiles/tai2tt_bipm2021.clk
+RUN bash /usr/local/bin/update_clock_corrections.sh
 
 
 # Switch back to root if you need to perform any actions with root privileges
