@@ -20,3 +20,6 @@ wget -q -O "${SOFTWARE_DIR}/tempo2/T2runtime/clock/tai2tt_bipm2020.clk" https://
 wget -q -O "${SOFTWARE_DIR}/tempo2/T2runtime/clock/tai2tt_bipm2021.clk" https://gitlab.in2p3.fr/epta/epta-dr2/-/raw/master/EPTA-DR2/clockfiles/tai2tt_bipm2021.clk
 
 
+
+
+

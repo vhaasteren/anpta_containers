@@ -4,9 +4,29 @@ services:
   anpta:
     build:
       context: .
-      dockerfile: anpta/Dockerfile
-    image: anpta:latest
+      dockerfile: Dockerfile
+      target: gpu
+      args:
+        BASE_IMAGE: nvidia/cuda:12.4.1-devel-ubuntu22.04
+    image: anpta:gpu-cu124
     container_name: anpta
+    profiles: [gpu]
+    volumes:
+     - .:/data/
+    command: /bin/bash
+    tty: true
+    stdin_open: true
+
+  anpta-cpu:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: cpu
+      args:
+        BASE_IMAGE: ubuntu:22.04
+    image: anpta:cpu
+    container_name: anpta_cpu
+    profiles: [cpu]
     volumes:
      - .:/data/
     command: /bin/bash
