@@ -143,6 +143,15 @@ singularity build anpta.sif docker-archive://anpta_gpu_image.tar
 singularity build anpta.sif docker-archive://anpta_cpu_image.tar
 </code></pre>
 
+The singularity container can be tested with
+--------------------------------
+
+<pre><code>
+singularity exec --bind /your_host_directory/:/container_directory/ anpta.sif bash
+</code></pre>
+
+
+
 Image sizes and registries
 --------------------------
 
@@ -162,9 +171,9 @@ This repository includes a ready-to-use Dev Container configuration under `devco
   - Legacy examples are kept in `devcontainer/` for reference (`Dockerfile.apple`, `Dockerfile.amd64`, `devcontainer.apple.json`).
 
 - Base image selection:
-  - By default, the Devcontainer builds FROM `anpta:cpu-singularity` (root variant) and creates a non‑root user for development.
+  - By default, the Devcontainer builds FROM `anpta:cpu` (non‑root docker variant).
   - To use the GPU base, change in `devcontainer/devcontainer.json`:
-    - `"BASE_IMAGE": "anpta:gpu-singularity"`
+    - `"BASE_IMAGE": "anpta:gpu"`
 
 - VS Code customizations:
   - The Devcontainer recommends installing useful extensions (Python, Black, Ruff, Jupyter, Pylance, YAML, GitLens).
@@ -178,12 +187,3 @@ This repository includes a ready-to-use Dev Container configuration under `devco
 - Notes:
   - This Devcontainer layer is for interactive development only, not for CI or production.
   - No extra container/remote env wiring is required; the venv is on PATH and auto‑activated.
-
-The container can be tested with
---------------------------------
-
-<pre><code>
-singularity exec --bind /work/rutger.vhaasteren/:/data/ anpta.sif bash
-</code></pre>
-
-
