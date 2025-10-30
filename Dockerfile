@@ -84,7 +84,7 @@ RUN ${VIRTUAL_ENV}/bin/pip install -r /tmp/req-pulsar.txt
 RUN bash /usr/local/bin/update_clock_corrections.sh
 
 # ---------- CPU target ----------
-FROM base AS cpu
+FROM base AS cpu-singularity
 COPY requirements/jax_cpu.txt /tmp/req-jax-cpu.txt
 COPY requirements/jax_common.txt /tmp/req-jax-common.txt
 COPY requirements/jax_nodeps.txt /tmp/req-jax-nodeps.txt
@@ -100,15 +100,13 @@ ENV CUDA_HOME=/usr/local/cuda \
     PATH=/usr/local/cuda/bin:${PATH} \
     LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH}
 
-# cuDNN from local tarball (path relative to repo root)
-COPY anpta/cudnn-linux-x86_64-9.5.1.17_cuda12-archive.tar.xz /tmp
-RUN cd /tmp && \
-    tar -xf cudnn-linux-x86_64-9.5.1.17_cuda12-archive.tar.xz && \
-    mv cudnn-linux-x86_64-9.5.1.17_cuda12-archive cudnn && \
-    cp -P cudnn/include/cudnn*.h /usr/local/cuda/include && \
-    cp -P cudnn/lib/libcudnn* /usr/local/cuda/lib64 && \
-    chmod a+r /usr/local/cuda/include/cudnn*.h /usr/local/cuda/lib64/libcudnn* && \
-    rm -rf /tmp/cudnn /tmp/cudnn-linux-x86_64-9.5.1.17_cuda12-archive.tar.xz
+# Install NVIDIA CUDA repo keyring and cuDNN (CUDA 12 variant) from APT
+RUN wget -q https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb \
+ && dpkg -i cuda-keyring_1.1-1_all.deb \
+ && rm -f cuda-keyring_1.1-1_all.deb \
+ && apt-get update \
+ && apt-get install -y --no-install-recommends libcudnn9-cuda-12 libcudnn9-dev-cuda-12 \
+ && rm -rf /var/lib/apt/lists/*
 
 # CUDA forward compatibility (optional)
 RUN wget -q https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-compat-12-5_555.42.02-1_amd64.deb \
@@ -138,8 +136,39 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     ${VIRTUAL_ENV}/bin/pip install -r /tmp/req-jax-gpu.txt -r /tmp/req-jax-common.txt
 RUN ${VIRTUAL_ENV}/bin/pip install --no-deps -r /tmp/req-jax-nodeps.txt
 
-FROM gpu-deps AS gpu
+FROM gpu-deps AS gpu-singularity
 WORKDIR ${SOFTWARE_DIR}
 CMD ["bash", "-lc", "source /opt/venvs/pta/bin/activate && exec bash"]
+
+
+# ---------- CPU docker (non-root) ----------
+FROM cpu-singularity AS cpu
+RUN useradd -m -s /bin/bash anpta \
+ && apt-get update && apt-get install -y --no-install-recommends sudo ca-certificates curl wget gnupg lsb-release \
+ && echo "anpta ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers \
+ && echo 'test -f "/opt/venvs/pta/bin/activate" && . "/opt/venvs/pta/bin/activate"' >> /home/anpta/.bashrc \
+ && chown -R anpta:anpta /opt/venvs/pta /opt/software /home/anpta \
+ && rm -rf /var/lib/apt/lists/*
+USER anpta
+WORKDIR /home/anpta
+ENV VIRTUAL_ENV="/opt/venvs/pta" \
+    PATH="/opt/venvs/pta/bin:${PATH}"
+RUN /opt/venvs/pta/bin/pip install --no-cache-dir ipykernel \
+ && /opt/venvs/pta/bin/python -m ipykernel install --user --name pta --display-name "Python (pta)"
+
+# ---------- GPU docker (non-root) ----------
+FROM gpu-singularity AS gpu
+RUN useradd -m -s /bin/bash anpta \
+ && apt-get update && apt-get install -y --no-install-recommends sudo ca-certificates curl wget gnupg lsb-release \
+ && echo "anpta ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers \
+ && echo 'test -f "/opt/venvs/pta/bin/activate" && . "/opt/venvs/pta/bin/activate"' >> /home/anpta/.bashrc \
+ && chown -R anpta:anpta /opt/venvs/pta /opt/software /home/anpta \
+ && rm -rf /var/lib/apt/lists/*
+USER anpta
+WORKDIR /home/anpta
+ENV VIRTUAL_ENV="/opt/venvs/pta" \
+    PATH="/opt/venvs/pta/bin:${PATH}"
+RUN /opt/venvs/pta/bin/pip install --no-cache-dir ipykernel \
+ && /opt/venvs/pta/bin/python -m ipykernel install --user --name pta --display-name "Python (pta)"
 
 

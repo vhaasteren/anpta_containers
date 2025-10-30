@@ -6,4 +6,8 @@ git+https://github.com/nanograv/enterprise@dev
 git+https://github.com/nanograv/discovery@main
 git+https://github.com/vhaasteren/h5pulsar@main
 git+https://github.com/bvgoncharov/enterprise_warp@master
-
+pypulse==0.1.1
+pint-pal==0.4.1
+enterprise_outliers==1.0.0
+la_forge==1.1.0
+git+https://github.com/pennucci/PulsePortraiture.git@py3

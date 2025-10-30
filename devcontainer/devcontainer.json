@@ -1,0 +1,29 @@
+{
+  "name": "anpta dev",
+  "build": {
+    "dockerfile": "devcontainer/Dockerfile.dev",
+    "context": "..",
+    "args": {
+      "BASE_IMAGE": "anpta:cpu-singularity"
+    }
+  },
+  "remoteUser": "anpta",
+  "workspaceFolder": "/workspaces/anpta",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.black-formatter",
+        "charliermarsh.ruff",
+        "ms-toolsai.jupyter",
+        "ms-toolsai.jupyter-keymap",
+        "ms-toolsai.jupyter-renderers",
+        "ms-python.vscode-pylance",
+        "redhat.vscode-yaml",
+        "eamodio.gitlens"
+      ]
+    }
+  }
+}
+
+
