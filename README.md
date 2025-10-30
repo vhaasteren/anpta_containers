@@ -6,7 +6,7 @@ Purpose
 
 This repo provides a reproducible docker image for PTA analysis. The main goal is for this image to be converted into a singularity container for use on High Throughput Clusters. The workflow is as follows
 
-First create the docker image from the Dockerfile locally. The docker-compose file contains the instruction to use the x86_64 architecture, so that even Apple Silicon users with an arm processor can do this. Then, the docker image needs to be saved to a tarball so that it can be copied over to a computing cluster that runs singularity (in case singularity does not run locally, like on apple silicon). Then, singularity can convert the docker tarball to a singularity container.
+First create the docker image from the Dockerfile locally. Then, the docker image needs to be saved to a tarball so that it can be copied over to a computing cluster that runs singularity (in case singularity does not run locally, like on apple silicon). Then, singularity can convert the docker tarball to a singularity container.
 
 
 Images and targets
