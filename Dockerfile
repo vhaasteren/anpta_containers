@@ -145,7 +145,6 @@ CMD ["bash", "-lc", "source /opt/venvs/pta/bin/activate && exec bash"]
 FROM cpu-singularity AS cpu
 RUN useradd -m -s /bin/bash anpta \
  && apt-get update && apt-get install -y --no-install-recommends sudo ca-certificates curl wget gnupg lsb-release \
- && echo "anpta ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers \
  && echo 'test -f "/opt/venvs/pta/bin/activate" && . "/opt/venvs/pta/bin/activate"' >> /home/anpta/.bashrc \
  && chown -R anpta:anpta /opt/venvs/pta /opt/software /home/anpta \
  && rm -rf /var/lib/apt/lists/*
@@ -160,7 +159,6 @@ RUN /opt/venvs/pta/bin/pip install --no-cache-dir ipykernel \
 FROM gpu-singularity AS gpu
 RUN useradd -m -s /bin/bash anpta \
  && apt-get update && apt-get install -y --no-install-recommends sudo ca-certificates curl wget gnupg lsb-release \
- && echo "anpta ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers \
  && echo 'test -f "/opt/venvs/pta/bin/activate" && . "/opt/venvs/pta/bin/activate"' >> /home/anpta/.bashrc \
  && chown -R anpta:anpta /opt/venvs/pta /opt/software /home/anpta \
  && rm -rf /var/lib/apt/lists/*

@@ -1,4 +1,4 @@
-AEI IPTA analysis docker & singularity
+AEI PTA analysis docker & singularity
 ======================================
 
 Purpose
@@ -150,6 +150,34 @@ Image sizes and registries
 - This is acceptable for public registries (Docker Hub/GHCR). Pushes will be slow; prefer CI on a fast network.
 - Will consider size optimizations later (multi-stage runtime trim, strip symbols, remove dev headers) if needed.
 
+
+Devcontainer (VS Code) setup
+----------------------------
+
+This repository includes a ready-to-use Dev Container configuration under `devcontainer/` for interactive development in VS Code.
+
+- Files:
+  - `devcontainer/devcontainer.json`: Devcontainer entrypoint that builds a small dev layer on top of a base image.
+  - `devcontainer/Dockerfile.dev`: Adds user `anpta` with passwordless sudo, auto‑activates the venv in `.bashrc`, and sets PATH/`VIRTUAL_ENV`.
+  - Legacy examples are kept in `devcontainer/` for reference (`Dockerfile.apple`, `Dockerfile.amd64`, `devcontainer.apple.json`).
+
+- Base image selection:
+  - By default, the Devcontainer builds FROM `anpta:cpu-singularity` (root variant) and creates a non‑root user for development.
+  - To use the GPU base, change in `devcontainer/devcontainer.json`:
+    - `"BASE_IMAGE": "anpta:gpu-singularity"`
+
+- VS Code customizations:
+  - The Devcontainer recommends installing useful extensions (Python, Black, Ruff, Jupyter, Pylance, YAML, GitLens).
+  - The Python venv is auto‑activated for interactive shells, and `ipykernel` is installed and registered as: “Python (pta)”.
+
+- How to use:
+  1. Open the repo in VS Code with the “Dev Containers” extension installed.
+  2. When prompted, “Reopen in Container” (or use the Command Palette: “Dev Containers: Reopen in Container”).
+  3. Select the kernel “Python (pta)” in Jupyter/Notebooks.
+
+- Notes:
+  - This Devcontainer layer is for interactive development only, not for CI or production.
+  - No extra container/remote env wiring is required; the venv is on PATH and auto‑activated.
 
 The container can be tested with
 --------------------------------

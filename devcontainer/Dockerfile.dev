@@ -1,17 +1,10 @@
-ARG BASE_IMAGE=anpta:cpu-singularity
+ARG BASE_IMAGE=anpta:cpu
 FROM ${BASE_IMAGE}
 
-RUN useradd -m -s /bin/bash anpta \
- && apt-get update && apt-get install -y --no-install-recommends sudo ca-certificates curl wget gnupg lsb-release \
- && echo "anpta ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers \
- && echo 'test -f "/opt/venvs/pta/bin/activate" && . "/opt/venvs/pta/bin/activate"' >> /home/anpta/.bashrc \
- && chown -R anpta:anpta /opt/venvs/pta /opt/software /home/anpta \
- && rm -rf /var/lib/apt/lists/*
+USER root
+RUN echo "anpta ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
 USER anpta
 WORKDIR /workspaces/anpta
-
-ENV VIRTUAL_ENV="/opt/venvs/pta" \
-    PATH="/opt/venvs/pta/bin:${PATH}"
 
 

@@ -4,7 +4,7 @@
     "dockerfile": "devcontainer/Dockerfile.dev",
     "context": "..",
     "args": {
-      "BASE_IMAGE": "anpta:cpu-singularity"
+      "BASE_IMAGE": "anpta:cpu"
     }
   },
   "remoteUser": "anpta",
@@ -25,5 +25,3 @@
     }
   }
 }
-
-
