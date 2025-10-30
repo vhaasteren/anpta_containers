@@ -1,7 +1,7 @@
 {
   "name": "anpta dev",
   "build": {
-    "dockerfile": "devcontainer/Dockerfile.dev",
+    "dockerfile": "Dockerfile.dev",
     "context": "..",
     "args": {
       "BASE_IMAGE": "anpta:cpu"
@@ -9,6 +9,7 @@
   },
   "remoteUser": "anpta",
   "workspaceFolder": "/workspaces/anpta",
+  "workspaceMount": "type=bind,source=${localWorkspaceFolder},target=/workspaces/anpta,consistency=cached",
   "customizations": {
     "vscode": {
       "extensions": [

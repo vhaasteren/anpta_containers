@@ -167,8 +167,8 @@ This repository includes a ready-to-use Dev Container configuration under `devco
 
 - Files:
   - `devcontainer/devcontainer.json`: Devcontainer entrypoint that builds a small dev layer on top of a base image.
-  - `devcontainer/Dockerfile.dev`: Adds user `anpta` with passwordless sudo, auto‑activates the venv in `.bashrc`, and sets PATH/`VIRTUAL_ENV`.
-  - Legacy examples are kept in `devcontainer/` for reference (`Dockerfile.apple`, `Dockerfile.amd64`, `devcontainer.apple.json`).
+  - `devcontainer/Dockerfile.dev`: Grants anpta user sudo permissions for ease of modification
+  - Place the above two files in a `.devcontainer` directory of your project
 
 - Base image selection:
   - By default, the Devcontainer builds FROM `anpta:cpu` (non‑root docker variant).
