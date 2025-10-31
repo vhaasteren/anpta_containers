@@ -6,8 +6,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # ---------- APT common ----------
 COPY apt/common.txt /tmp/apt-common.txt
-RUN --mount=type=cache,target=/var/cache/apt \
-    apt-get update && xargs -a /tmp/apt-common.txt apt-get install -y --no-install-recommends && \
+RUN apt-get update && xargs -a /tmp/apt-common.txt apt-get install -y --no-install-recommends && \
     rm -rf /var/lib/apt/lists/*
 
 # ---------- PGPLOT env ----------
@@ -70,8 +69,7 @@ RUN python3 -m venv ${VIRTUAL_ENV} \
 
 # ---------- Common Python stack ----------
 COPY requirements/common.txt /tmp/req-common.txt
-RUN --mount=type=cache,target=/root/.cache/pip \
-    ${VIRTUAL_ENV}/bin/pip install -r /tmp/req-common.txt
+RUN ${VIRTUAL_ENV}/bin/pip install -r /tmp/req-common.txt
 
 # ---------- PSRCHIVE (with Python bindings) ----------
 RUN bash /usr/local/bin/build_psrchive.sh
@@ -92,8 +90,7 @@ FROM base AS cpu-singularity
 COPY requirements/jax_cpu.txt /tmp/req-jax-cpu.txt
 COPY requirements/jax_common.txt /tmp/req-jax-common.txt
 COPY requirements/jax_nodeps.txt /tmp/req-jax-nodeps.txt
-RUN --mount=type=cache,target=/root/.cache/pip \
-    ${VIRTUAL_ENV}/bin/pip install -r /tmp/req-jax-cpu.txt -r /tmp/req-jax-common.txt
+RUN ${VIRTUAL_ENV}/bin/pip install -r /tmp/req-jax-cpu.txt -r /tmp/req-jax-common.txt
 RUN ${VIRTUAL_ENV}/bin/pip install --no-deps -r /tmp/req-jax-nodeps.txt
 WORKDIR ${SOFTWARE_DIR}
 CMD ["bash", "-lc", "source /opt/venvs/pta/bin/activate && exec bash"]
@@ -121,8 +118,7 @@ ENV LD_LIBRARY_PATH=/usr/local/cuda/compat/lib64:${LD_LIBRARY_PATH} \
 
 # GPU Python stack
 COPY requirements/gpu.txt /tmp/req-gpu.txt
-RUN --mount=type=cache,target=/root/.cache/pip \
-    ${VIRTUAL_ENV}/bin/pip install -r /tmp/req-gpu.txt
+RUN ${VIRTUAL_ENV}/bin/pip install -r /tmp/req-gpu.txt
 
 # Torch CUDA wheels
 RUN ${VIRTUAL_ENV}/bin/pip install torch==2.4.1+cu124 torchvision==0.19.1+cu124 torchaudio==2.4.1 \
@@ -136,8 +132,7 @@ RUN ${VIRTUAL_ENV}/bin/pip install nflows==0.14 --no-dependencies
 COPY requirements/jax_gpu.txt /tmp/req-jax-gpu.txt
 COPY requirements/jax_common.txt /tmp/req-jax-common.txt
 COPY requirements/jax_nodeps.txt /tmp/req-jax-nodeps.txt
-RUN --mount=type=cache,target=/root/.cache/pip \
-    ${VIRTUAL_ENV}/bin/pip install -r /tmp/req-jax-gpu.txt -r /tmp/req-jax-common.txt
+RUN ${VIRTUAL_ENV}/bin/pip install -r /tmp/req-jax-gpu.txt -r /tmp/req-jax-common.txt
 RUN ${VIRTUAL_ENV}/bin/pip install --no-deps -r /tmp/req-jax-nodeps.txt
 
 FROM gpu-deps AS gpu-singularity

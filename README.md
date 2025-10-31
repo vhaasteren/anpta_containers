@@ -21,27 +21,8 @@ This repo uses a single Dockerfile with four build targets (two variants per arc
 
 Both CPU variants are functionally identical; the “docker” variant adds a non-root user and permissions. GPU variants additionally include CUDA/cuDNN, torch+cu124, cupy, pycuda, JAX CUDA.
 
-Build with docker compose profiles (recommended)
------------------------------------------------
-
-The single `docker-compose.yml` defines two services guarded by profiles.
-
-GPU build/run (docker variant, linux/amd64):
-
-<pre><code>
-docker compose --profile gpu build
-docker compose --profile gpu run --rm anpta bash
-</code></pre>
-
-CPU build/run (docker variant; multi-arch host pulls its native arch):
-
-<pre><code>
-docker compose --profile cpu build
-docker compose --profile cpu run --rm anpta-cpu bash
-</code></pre>
-
-Build directly with docker buildx (optional)
---------------------------------------------
+Build with docker buildx
+------------------------
 
 CPU (multi-arch, docker variant):
 
@@ -113,12 +94,12 @@ Versioning and tags
 Starting locally
 ----------------
 
-With the compose profiles, prefer:
+After building with buildx, run the container with:
 
 <pre><code>
-docker compose --profile gpu run --rm anpta bash
+docker run --rm -it anpta:gpu-cu124 bash
 # or
-docker compose --profile cpu run --rm anpta-cpu bash
+docker run --rm -it anpta:cpu bash
 </code></pre>
 
 Save the docker image
