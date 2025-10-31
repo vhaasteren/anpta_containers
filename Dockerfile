@@ -83,6 +83,10 @@ RUN ${VIRTUAL_ENV}/bin/pip install -r /tmp/req-pulsar.txt
 # ---------- Clock corrections ----------
 RUN bash /usr/local/bin/update_clock_corrections.sh
 
+# ---------- Enterprise outliers ----------
+COPY scripts/install_enterprise_outliers.sh /usr/local/bin/
+RUN bash /usr/local/bin/install_enterprise_outliers.sh
+
 # ---------- CPU target ----------
 FROM base AS cpu-singularity
 COPY requirements/jax_cpu.txt /tmp/req-jax-cpu.txt
