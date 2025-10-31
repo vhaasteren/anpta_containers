@@ -4,9 +4,11 @@ AEI PTA analysis docker & singularity
 Purpose
 -------
 
-This repo provides a reproducible docker image for PTA analysis. The main goal is for this image to be converted into a singularity container for use on High Throughput Clusters. The workflow is as follows
+This repo provides a reproducible docker image for PTA analysis. One of the main goals is for this image to be converted into a singularity container for use on High Throughput Clusters. The workflow is as follows
 
 First create the docker image from the Dockerfile locally. Then, the docker image needs to be saved to a tarball so that it can be copied over to a computing cluster that runs singularity (in case singularity does not run locally, like on apple silicon). Then, singularity can convert the docker tarball to a singularity container.
+
+These containers also have user-space versions for devcontainer use.
 
 
 Images and targets
@@ -116,12 +118,47 @@ docker save -o anpta_cpu_image.tar anpta:cpu-singularity
 Convert the docker image to a singularity container
 ---------------------------------------------------
 
-This needs to be done on a node that has singularity installed
+**Option 1: Build directly from Docker image (recommended, works on Apple Silicon)**
+
+You can build .sif files directly from Docker image tags using Docker itself (no need for Singularity locally):
+
+<pre><code>
+# Build CPU Singularity image
+./scripts/build_singularity_with_docker.sh anpta:cpu-singularity anpta-cpu.sif
+
+# Build GPU Singularity image
+./scripts/build_singularity_with_docker.sh anpta:gpu-singularity anpta-gpu.sif
+
+# Build both at once
+./scripts/build_all_singularity.sh
+</code></pre>
+
+This method works on Apple Silicon and any system with Docker, as it runs Singularity/Apptainer inside a Docker container.
+
+For detailed instructions on building Singularity images on Apple Silicon, see [docs/BUILDING_SINGULARITY_ON_APPLE_SILICON.md](docs/BUILDING_SINGULARITY_ON_APPLE_SILICON.md).
+
+**Option 2: Build from Docker tar archive (traditional method)**
+
+First save the Docker image as a tar file:
+
+<pre><code>
+docker save -o anpta_gpu_image.tar anpta:gpu-singularity
+# or
+docker save -o anpta_cpu_image.tar anpta:cpu-singularity
+</code></pre>
+
+Then convert to Singularity. On systems with Singularity installed natively:
 
 <pre><code>
 singularity build anpta.sif docker-archive://anpta_gpu_image.tar
 # or
 singularity build anpta.sif docker-archive://anpta_cpu_image.tar
+</code></pre>
+
+Or on Apple Silicon (or systems without Singularity), use the Docker-based script:
+
+<pre><code>
+./scripts/build_singularity_with_docker.sh docker-archive://anpta_gpu_image.tar anpta-gpu.sif
 </code></pre>
 
 The singularity container can be tested with
@@ -131,7 +168,29 @@ The singularity container can be tested with
 singularity exec --bind /your_host_directory/:/container_directory/ anpta.sif bash
 </code></pre>
 
+Hosting and sharing Singularity images
+--------------------------------------
 
+Since Docker Hub doesn't support `.sif` files, you can host your Singularity images using alternative solutions. The recommended approach is **Sylabs Cloud Library**, which provides native support for Singularity images and allows collaborators to pull directly:
+
+**Publishing to Sylabs Cloud Library:**
+
+1. Create an account at https://cloud.sylabs.io/
+2. Authenticate: `singularity remote login --username <your-username>`
+3. Build your `.sif` files (see above)
+4. Push using the automated script:
+   ```bash
+   ./scripts/push_to_sylabs.sh v0.1.0
+   ```
+
+**Collaborators can then pull directly:**
+
+```bash
+singularity pull library://<username>/anpta/cpu-singularity:v0.1.0
+singularity pull library://<username>/anpta/gpu-singularity:v0.1.0
+```
+
+For detailed information on all hosting options (Sylabs, GitHub Releases, GitLab Packages, etc.), see [docs/HOSTING_SINGULARITY_IMAGES.md](docs/HOSTING_SINGULARITY_IMAGES.md).
 
 Image sizes and registries
 --------------------------
@@ -166,5 +225,5 @@ This repository includes a ready-to-use Dev Container configuration under `devco
   3. Select the kernel “Python (pta)” in Jupyter/Notebooks.
 
 - Notes:
-  - This Devcontainer layer is for interactive development only, not for CI or production.
+  - The Devcontainer layer is for interactive development only, not for CI or production.
   - No extra container/remote env wiring is required; the venv is on PATH and auto‑activated.
