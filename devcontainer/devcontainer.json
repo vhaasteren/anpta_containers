@@ -2,9 +2,8 @@
   "name": "anpta dev",
   "build": {
     "dockerfile": "Dockerfile.dev",
-    "context": "..",
     "args": {
-      "BASE_IMAGE": "anpta:cpu"
+      "BASE_IMAGE": "vhaasteren/anpta:cpu"
     }
   },
   "remoteUser": "anpta",
