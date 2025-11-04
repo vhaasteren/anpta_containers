@@ -16,3 +16,4 @@ flax==0.12.0
 UMNN==1.71
 nflows==0.14
 zuko==1.5.0
+paramax==0.0.3

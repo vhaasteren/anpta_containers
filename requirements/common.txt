@@ -44,7 +44,6 @@ msgpack==1.1.2
 bilby==2.7.0
 ChainConsumer==1.2.5
 emcee==3.1.6
-paramax==0.0.3
 numba==0.62.1
 pre_commit==4.3.0
 myst-parser==4.0.1

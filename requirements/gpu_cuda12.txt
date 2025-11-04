@@ -4,8 +4,7 @@ torchvision==0.19.1+cu128
 pycuda==2025.1.2
 scikit-cuda==0.5.3
 cupy-cuda12x==13.3.0
-jax[cuda12_pip]==0.8.0
-jaxlib[cuda12_pip]==0.8.0
+jax[cuda12]==0.8.0
 
 # JAX/NN common packages
 blackjax==1.2.5
@@ -20,3 +19,4 @@ flax==0.12.0
 UMNN==1.71
 nflows==0.14
 zuko==1.5.0
+paramax==0.0.3
