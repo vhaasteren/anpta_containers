@@ -6,3 +6,17 @@ scikit-cuda==0.5.3
 cupy-cuda12x==13.3.0
 jax[cuda12_pip]==0.8.0
 jaxlib[cuda12_pip]==0.8.0
+
+# JAX/NN common packages
+blackjax==1.2.5
+numpyro==0.19.0
+jaxns==2.6.9
+tensorboard==2.20.0
+tensorstore==0.1.78
+flowjax==17.2.1
+pymc==5.26.1
+orbax-checkpoint==0.11.26
+flax==0.12.0
+UMNN==1.71
+nflows==0.14
+zuko==1.5.0

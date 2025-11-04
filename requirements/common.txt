@@ -81,6 +81,7 @@ encor==1.1.5
 nestle==0.2.1
 jplephem==2.23
 pyerfa==2.0.1.5
+latex==0.7.0
 
 # JAX/NN common packages
 blackjax==1.2.5
@@ -93,5 +94,5 @@ pymc==5.26.1
 orbax-checkpoint==0.11.26
 flax==0.12.0
 UMNN==1.71
-nflows=0.14
-zuko==0.4.0
+nflows==0.14
+zuko==1.5.0
