@@ -1,0 +1,8 @@
+--extra-index-url https://download.pytorch.org/whl/cu130
+torch==2.9.0+cu130
+torchvision==0.24.0+cu130
+pycuda==2025.1.2
+scikit-cuda==0.5.3
+cupy-cuda13x==13.6.0
+jax[cuda13_pip]==0.8.0
+jaxlib[cuda13_pip]==0.8.0

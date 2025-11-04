@@ -26,7 +26,6 @@ openssh-server
 ninja-build
 openbox
 xorg
-libfftw3-3
 libfftw3-bin
 libfftw3-dev
 libfftw3-single3
@@ -54,5 +53,9 @@ libpangoft2-1.0-0
 libgdk-pixbuf-2.0-0
 libcairo2
 shared-mime-info
-
+texlive-latex-base
+texlive-fonts-recommended
+texlive-latex-extra
+dvipng
+ghostscript
 

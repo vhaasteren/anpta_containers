@@ -1,0 +1,4 @@
+torch==2.9.0
+torchvision==0.24.0
+jax==0.8.0
+jaxlib==0.8.0

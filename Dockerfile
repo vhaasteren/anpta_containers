@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=ubuntu:22.04
+ARG BASE_IMAGE=ubuntu:24.04
 FROM ${BASE_IMAGE} AS base
 
 LABEL maintainer="Rutger van Haasteren <rutger@vhaasteren.com>"
@@ -87,55 +87,37 @@ RUN bash /usr/local/bin/install_enterprise_outliers.sh
 
 # ---------- CPU target ----------
 FROM base AS cpu-singularity
-COPY requirements/jax_cpu.txt /tmp/req-jax-cpu.txt
-COPY requirements/jax_common.txt /tmp/req-jax-common.txt
-COPY requirements/jax_nodeps.txt /tmp/req-jax-nodeps.txt
-RUN ${VIRTUAL_ENV}/bin/pip install -r /tmp/req-jax-cpu.txt -r /tmp/req-jax-common.txt
-RUN ${VIRTUAL_ENV}/bin/pip install --no-deps -r /tmp/req-jax-nodeps.txt
+COPY requirements/cpu.txt /tmp/req-cpu.txt
+RUN ${VIRTUAL_ENV}/bin/pip install -r /tmp/req-cpu.txt
 WORKDIR ${SOFTWARE_DIR}
 CMD ["bash", "-lc", "source /opt/venvs/pta/bin/activate && exec bash"]
 
-# ---------- GPU deps target ----------
-FROM base AS gpu-deps
+# ---------- GPU deps target (CUDA 12) ----------
+FROM base AS gpu-deps-cuda12
 ENV CUDA_HOME=/usr/local/cuda \
     PATH=/usr/local/cuda/bin:${PATH} \
     LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH}
 
-# Install NVIDIA CUDA repo keyring and cuDNN (CUDA 12 variant) from APT
-RUN wget -q https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb \
- && dpkg -i cuda-keyring_1.1-1_all.deb \
- && rm -f cuda-keyring_1.1-1_all.deb \
- && apt-get update \
- && apt-get install -y --no-install-recommends libcudnn9-cuda-12 libcudnn9-dev-cuda-12 \
- && rm -rf /var/lib/apt/lists/*
+# GPU Python stack (CUDA 12)
+COPY requirements/gpu_cuda12.txt /tmp/req-gpu-cuda12.txt
+RUN ${VIRTUAL_ENV}/bin/pip install -r /tmp/req-gpu-cuda12.txt
 
-# CUDA forward compatibility (optional)
-RUN wget -q https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-compat-12-5_555.42.02-1_amd64.deb \
- && dpkg -i cuda-compat-12-5_555.42.02-1_amd64.deb \
- && rm -f cuda-compat-12-5_555.42.02-1_amd64.deb
-ENV LD_LIBRARY_PATH=/usr/local/cuda/compat/lib64:${LD_LIBRARY_PATH} \
-    CUDA_COMPAT_PATH=/usr/local/cuda/compat
 
-# GPU Python stack
-COPY requirements/gpu.txt /tmp/req-gpu.txt
-RUN ${VIRTUAL_ENV}/bin/pip install -r /tmp/req-gpu.txt
+FROM gpu-deps-cuda12 AS gpu-cuda12-singularity
+WORKDIR ${SOFTWARE_DIR}
+CMD ["bash", "-lc", "source /opt/venvs/pta/bin/activate && exec bash"]
 
-# Torch CUDA wheels
-RUN ${VIRTUAL_ENV}/bin/pip install torch==2.4.1+cu124 torchvision==0.19.1+cu124 torchaudio==2.4.1 \
-    --extra-index-url https://download.pytorch.org/whl/cu124
+# ---------- GPU deps target (CUDA 13) ----------
+FROM base AS gpu-deps-cuda13
+ENV CUDA_HOME=/usr/local/cuda \
+    PATH=/usr/local/cuda/bin:${PATH} \
+    LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH}
 
-# Torch-dependent extras installed without pulling deps
-RUN ${VIRTUAL_ENV}/bin/pip install UMNN==1.70 --no-dependencies
-RUN ${VIRTUAL_ENV}/bin/pip install nflows==0.14 --no-dependencies
+# GPU Python stack (CUDA 13)
+COPY requirements/gpu_cuda13.txt /tmp/req-gpu-cuda13.txt
+RUN ${VIRTUAL_ENV}/bin/pip install -r /tmp/req-gpu-cuda13.txt
 
-# JAX CUDA + ecosystem
-COPY requirements/jax_gpu.txt /tmp/req-jax-gpu.txt
-COPY requirements/jax_common.txt /tmp/req-jax-common.txt
-COPY requirements/jax_nodeps.txt /tmp/req-jax-nodeps.txt
-RUN ${VIRTUAL_ENV}/bin/pip install -r /tmp/req-jax-gpu.txt -r /tmp/req-jax-common.txt
-RUN ${VIRTUAL_ENV}/bin/pip install --no-deps -r /tmp/req-jax-nodeps.txt
-
-FROM gpu-deps AS gpu-singularity
+FROM gpu-deps-cuda13 AS gpu-cuda13-singularity
 WORKDIR ${SOFTWARE_DIR}
 CMD ["bash", "-lc", "source /opt/venvs/pta/bin/activate && exec bash"]
 
@@ -154,8 +136,36 @@ ENV VIRTUAL_ENV="/opt/venvs/pta" \
 RUN /opt/venvs/pta/bin/pip install --no-cache-dir ipykernel \
  && /opt/venvs/pta/bin/python -m ipykernel install --user --name pta --display-name "Python (pta)"
 
-# ---------- GPU docker (non-root) ----------
-FROM gpu-singularity AS gpu
+# ---------- GPU docker (non-root, CUDA 12) ----------
+FROM gpu-cuda12-singularity AS gpu-cuda12
+RUN useradd -m -s /bin/bash anpta \
+ && apt-get update && apt-get install -y --no-install-recommends sudo ca-certificates curl wget gnupg lsb-release \
+ && echo 'test -f "/opt/venvs/pta/bin/activate" && . "/opt/venvs/pta/bin/activate"' >> /home/anpta/.bashrc \
+ && chown -R anpta:anpta /opt/venvs/pta /opt/software /home/anpta \
+ && rm -rf /var/lib/apt/lists/*
+USER anpta
+WORKDIR /home/anpta
+ENV VIRTUAL_ENV="/opt/venvs/pta" \
+    PATH="/opt/venvs/pta/bin:${PATH}"
+RUN /opt/venvs/pta/bin/pip install --no-cache-dir ipykernel \
+ && /opt/venvs/pta/bin/python -m ipykernel install --user --name pta --display-name "Python (pta)"
+
+# ---------- GPU docker (non-root, CUDA 13) ----------
+FROM gpu-cuda13-singularity AS gpu-cuda13
+RUN useradd -m -s /bin/bash anpta \
+ && apt-get update && apt-get install -y --no-install-recommends sudo ca-certificates curl wget gnupg lsb-release \
+ && echo 'test -f "/opt/venvs/pta/bin/activate" && . "/opt/venvs/pta/bin/activate"' >> /home/anpta/.bashrc \
+ && chown -R anpta:anpta /opt/venvs/pta /opt/software /home/anpta \
+ && rm -rf /var/lib/apt/lists/*
+USER anpta
+WORKDIR /home/anpta
+ENV VIRTUAL_ENV="/opt/venvs/pta" \
+    PATH="/opt/venvs/pta/bin:${PATH}"
+RUN /opt/venvs/pta/bin/pip install --no-cache-dir ipykernel \
+ && /opt/venvs/pta/bin/python -m ipykernel install --user --name pta --display-name "Python (pta)"
+
+# ---------- GPU docker (non-root, legacy alias for CUDA 12) ----------
+FROM gpu-cuda12-singularity AS gpu
 RUN useradd -m -s /bin/bash anpta \
  && apt-get update && apt-get install -y --no-install-recommends sudo ca-certificates curl wget gnupg lsb-release \
  && echo 'test -f "/opt/venvs/pta/bin/activate" && . "/opt/venvs/pta/bin/activate"' >> /home/anpta/.bashrc \

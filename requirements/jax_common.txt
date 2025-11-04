@@ -1,9 +1,0 @@
-blackjax==1.1.1
-numpyro==0.14.0
-jaxns==2.5.1
-tensorboard==2.18.0
-tensorstore==0.1.67
-flowjax==16.0.0
-pymc==5.9.1
-
-
