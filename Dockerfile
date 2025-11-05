@@ -88,20 +88,44 @@ RUN ${VIRTUAL_ENV}/bin/pip install -r /tmp/req-cpu.txt
 WORKDIR ${SOFTWARE_DIR}
 CMD ["bash", "-lc", "source /opt/venvs/pta/bin/activate && exec bash"]
 
-# ---------- GPU deps target (CUDA 12) ----------
-FROM base AS gpu-deps-cuda12
+# ---------- GPU deps target (CUDA 12.4) ----------
+FROM base AS gpu-deps-cuda124
 ENV CUDA_HOME=/usr/local/cuda \
     PATH=/usr/local/cuda/bin:${PATH} \
     LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH}
 
-# GPU Python stack (CUDA 12)
-COPY requirements/gpu_cuda12.txt /tmp/req-gpu-cuda12.txt
-RUN ${VIRTUAL_ENV}/bin/pip install -r /tmp/req-gpu-cuda12.txt
+# Install NVIDIA CUDA repo keyring and cuDNN (CUDA 12.4) from APT
+RUN wget -q https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb \
+ && dpkg -i cuda-keyring_1.1-1_all.deb \
+ && rm -f cuda-keyring_1.1-1_all.deb \
+ && apt-get update \
+ && apt-get install -y --no-install-recommends libcudnn9-cuda-12 libcudnn9-dev-cuda-12 \
+ && rm -rf /var/lib/apt/lists/*
+
+# GPU Python stack (CUDA 12.4)
+COPY requirements/gpu_cuda124.txt /tmp/req-gpu-cuda124.txt
+RUN ${VIRTUAL_ENV}/bin/pip install -r /tmp/req-gpu-cuda124.txt
 
 
-FROM gpu-deps-cuda12 AS gpu-cuda12-singularity
+FROM gpu-deps-cuda124 AS gpu-cuda124-singularity
 WORKDIR ${SOFTWARE_DIR}
 CMD ["bash", "-lc", "source /opt/venvs/pta/bin/activate && exec bash"]
+
+# ---------- GPU deps target (CUDA 12.8) ----------
+FROM base AS gpu-deps-cuda128
+ENV CUDA_HOME=/usr/local/cuda \
+    PATH=/usr/local/cuda/bin:${PATH} \
+    LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH}
+
+# GPU Python stack (CUDA 12.8)
+COPY requirements/gpu_cuda128.txt /tmp/req-gpu-cuda128.txt
+RUN ${VIRTUAL_ENV}/bin/pip install -r /tmp/req-gpu-cuda128.txt
+
+
+FROM gpu-deps-cuda128 AS gpu-cuda128-singularity
+WORKDIR ${SOFTWARE_DIR}
+CMD ["bash", "-lc", "source /opt/venvs/pta/bin/activate && exec bash"]
+
 
 # ---------- GPU deps target (CUDA 13) ----------
 FROM base AS gpu-deps-cuda13
@@ -132,8 +156,22 @@ ENV VIRTUAL_ENV="/opt/venvs/pta" \
 RUN /opt/venvs/pta/bin/pip install --no-cache-dir ipykernel \
  && /opt/venvs/pta/bin/python -m ipykernel install --user --name pta --display-name "Python (pta)"
 
-# ---------- GPU docker (non-root, CUDA 12) ----------
-FROM gpu-cuda12-singularity AS gpu-cuda12
+# ---------- GPU docker (non-root, CUDA 12.4) ----------
+FROM gpu-cuda124-singularity AS gpu-cuda124
+RUN useradd -m -s /bin/bash anpta \
+ && apt-get update && apt-get install -y --no-install-recommends sudo ca-certificates curl wget gnupg lsb-release \
+ && echo 'test -f "/opt/venvs/pta/bin/activate" && . "/opt/venvs/pta/bin/activate"' >> /home/anpta/.bashrc \
+ && chown -R anpta:anpta /opt/venvs/pta /opt/software /home/anpta \
+ && rm -rf /var/lib/apt/lists/*
+USER anpta
+WORKDIR /home/anpta
+ENV VIRTUAL_ENV="/opt/venvs/pta" \
+    PATH="/opt/venvs/pta/bin:${PATH}"
+RUN /opt/venvs/pta/bin/pip install --no-cache-dir ipykernel \
+ && /opt/venvs/pta/bin/python -m ipykernel install --user --name pta --display-name "Python (pta)"
+
+# ---------- GPU docker (non-root, CUDA 12.8) ----------
+FROM gpu-cuda128-singularity AS gpu-cuda128
 RUN useradd -m -s /bin/bash anpta \
  && apt-get update && apt-get install -y --no-install-recommends sudo ca-certificates curl wget gnupg lsb-release \
  && echo 'test -f "/opt/venvs/pta/bin/activate" && . "/opt/venvs/pta/bin/activate"' >> /home/anpta/.bashrc \
@@ -159,19 +197,3 @@ ENV VIRTUAL_ENV="/opt/venvs/pta" \
     PATH="/opt/venvs/pta/bin:${PATH}"
 RUN /opt/venvs/pta/bin/pip install --no-cache-dir ipykernel \
  && /opt/venvs/pta/bin/python -m ipykernel install --user --name pta --display-name "Python (pta)"
-
-# ---------- GPU docker (non-root, legacy alias for CUDA 12) ----------
-FROM gpu-cuda12-singularity AS gpu
-RUN useradd -m -s /bin/bash anpta \
- && apt-get update && apt-get install -y --no-install-recommends sudo ca-certificates curl wget gnupg lsb-release \
- && echo 'test -f "/opt/venvs/pta/bin/activate" && . "/opt/venvs/pta/bin/activate"' >> /home/anpta/.bashrc \
- && chown -R anpta:anpta /opt/venvs/pta /opt/software /home/anpta \
- && rm -rf /var/lib/apt/lists/*
-USER anpta
-WORKDIR /home/anpta
-ENV VIRTUAL_ENV="/opt/venvs/pta" \
-    PATH="/opt/venvs/pta/bin:${PATH}"
-RUN /opt/venvs/pta/bin/pip install --no-cache-dir ipykernel \
- && /opt/venvs/pta/bin/python -m ipykernel install --user --name pta --display-name "Python (pta)"
-
-
