@@ -9,6 +9,12 @@ COPY apt/common.txt /tmp/apt-common.txt
 RUN apt-get update && xargs -a /tmp/apt-common.txt apt-get install -y --no-install-recommends && \
     rm -rf /var/lib/apt/lists/*
 
+# ---------- Python 3.11 (if available) ----------
+# Try to install python3.11 for Ubuntu 22.04 (will fail gracefully on Ubuntu 24.04 where it doesn't exist)
+RUN apt-get update && \
+    (apt-get install -y --no-install-recommends python3.11 python3.11-venv python3.11-dev 2>/dev/null || true) && \
+    rm -rf /var/lib/apt/lists/*
+
 # ---------- PGPLOT env ----------
 ENV PGPLOT_DIR=/usr/lib/pgplot5 \
     PGPLOT_FONT=/usr/lib/pgplot5/grfont.dat \
@@ -64,8 +70,10 @@ ENV TEMPO2=${SOFTWARE_DIR}/tempo2/T2runtime \
     LD_LIBRARY_PATH="${SOFTWARE_DIR}/tempo2/T2runtime/lib:${CALCEPH}/install/lib:${LD_LIBRARY_PATH}"
 
 # ---------- Python env ----------
-RUN python3 -m venv ${VIRTUAL_ENV} \
- && ${VIRTUAL_ENV}/bin/pip install --upgrade pip wheel==0.43.0
+# Use highest available Python 3.x version (python3.11 on Ubuntu 22.04, python3.12 on Ubuntu 24.04)
+RUN PYTHON3=$(ls -1 /usr/bin/python3.* 2>/dev/null | grep -E 'python3\.[0-9]+$' | sort -V | tail -1 || which python3) && \
+    ${PYTHON3} -m venv ${VIRTUAL_ENV} && \
+    ${VIRTUAL_ENV}/bin/pip install --upgrade pip wheel==0.43.0
 
 # ---------- Common Python stack ----------
 COPY requirements/common.txt /tmp/req-common.txt
