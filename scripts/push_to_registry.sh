@@ -77,8 +77,8 @@ check_prerequisites() {
     # Check if buildx builder exists with multi-platform support
     local builder_name="anpta-builder"
     
-    # Check if builder exists
-    if docker buildx ls | grep -q "${builder_name}"; then
+    # Check if builder exists (skip header line)
+    if docker buildx ls 2>/dev/null | tail -n +2 | awk '{print $1}' | grep -q "^${builder_name}$"; then
         info "Found existing buildx builder: ${builder_name}"
         
         # Check if it has the correct driver
@@ -91,11 +91,8 @@ check_prerequisites() {
             docker buildx create --name "${builder_name}" --driver docker-container --use
         else
             info "Using existing buildx builder with docker-container driver"
-            # Just switch to it - don't try to create again
-            docker buildx use "${builder_name}" 2>/dev/null || {
-                warn "Failed to use existing builder, trying to bootstrap..."
-                docker buildx inspect "${builder_name}" --bootstrap
-            }
+            # Switch to it - don't try to create again
+            docker buildx use "${builder_name}" 2>/dev/null || true
         fi
     else
         info "Creating new buildx builder with docker-container driver (supports multi-platform)..."
@@ -104,12 +101,12 @@ check_prerequisites() {
     
     # Bootstrap the builder to ensure it's ready
     info "Bootstrapping builder..."
-    docker buildx inspect --bootstrap "${builder_name}" || {
+    if ! docker buildx inspect --bootstrap "${builder_name}" 2>/dev/null; then
         warn "Bootstrap failed, trying to recreate builder..."
         docker buildx rm "${builder_name}" 2>/dev/null || true
         docker buildx create --name "${builder_name}" --driver docker-container --use
         docker buildx inspect --bootstrap "${builder_name}"
-    }
+    fi
     
     # Check if we can reach the registry
     if [ "${USE_DOCKERHUB}" = "true" ]; then
