@@ -3,15 +3,14 @@
 # Build and push all anpta container variants to registry (local or Docker Hub)
 #
 # Usage:
-#   ./scripts/push_to_registry.sh [VERSION] [DOMAIN|dockerhub]
+#   ./scripts/push_to_registry.sh [REGISTRY]
 #
 # Examples:
-#   ./scripts/push_to_registry.sh                          # Local registry (default), reads VERSION from repo
-#   ./scripts/push_to_registry.sh v0.1.0                   # Override version, local registry
-#   ./scripts/push_to_registry.sh v0.1.0 vhaasteren.com    # Override version, local registry with custom domain
-#   ./scripts/push_to_registry.sh v0.1.0 dockerhub        # Override version, Docker Hub
+#   ./scripts/push_to_registry.sh                          # Local registry (default: vhaasteren.com)
+#   ./scripts/push_to_registry.sh dockerhub                # Docker Hub
+#   ./scripts/push_to_registry.sh vhaasteren.com            # Local registry with custom domain
 #
-# Version is read from VERSION file in repo root, or can be overridden as first argument.
+# Version is ALWAYS read from VERSION file in repo root (must exist).
 
 set -euo pipefail
 
@@ -19,10 +18,17 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-# Read version from VERSION file
-DEFAULT_VERSION=$(cat "${REPO_ROOT}/VERSION" | tr -d '[:space:]')
-VERSION="${1:-${DEFAULT_VERSION}}"
-REGISTRY_ARG="${2:-vhaasteren.com}"
+# Read version from VERSION file (must exist)
+if [ ! -f "${REPO_ROOT}/VERSION" ]; then
+    error "VERSION file not found at ${REPO_ROOT}/VERSION"
+    exit 1
+fi
+VERSION=$(cat "${REPO_ROOT}/VERSION" | tr -d '[:space:]')
+if [ -z "${VERSION}" ]; then
+    error "VERSION file is empty"
+    exit 1
+fi
+REGISTRY_ARG="${1:-vhaasteren.com}"
 DOCKERHUB_USER="vhaasteren"
 
 # Registry configuration
@@ -195,7 +201,7 @@ main() {
     
     # Build and push all variants (aborts on first error due to set -e)
     info "=== Building CPU (Singularity) variant ==="
-    info "Note: Built as Docker image, but not converted to .sif (Singularity doesn't run on ARM64)"
+    info "Note: Built as Docker image, but not converted to .sif (Apptainer doesn't run on macOS)"
     build_and_push \
         "cpu-singularity" \
         "linux/amd64,linux/arm64" \
