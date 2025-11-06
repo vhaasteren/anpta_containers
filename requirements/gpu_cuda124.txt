@@ -1,21 +1,27 @@
---extra-index-url https://download.pytorch.org/whl/cu124
-torch==2.6.0+cu124
-torchvision==0.21.0+cu124
+--extra-index-url https://download.pytorch.org/whl/cu121
+# Use PyTorch cu121 builds: they use cuDNN 8.9 (compatible with JAX 0.4.26)
+# CUDA 12.1 binaries are backward compatible with CUDA 12.4 runtime
+# All cu124 builds (2.4.0+) use cuDNN 9.1, which conflicts with JAX 0.4.26
+torch==2.3.1+cu121
+torchvision==0.18.1+cu121
 pycuda==2025.1.2
 scikit-cuda==0.5.3
 cupy-cuda12x==13.6.0
-jax[cuda12]==0.8.0
+# JAX 0.4.26 requires cuDNN 8.9.x (nvidia-cudnn-cu12<9.0 and >=8.9.2.26)
+# Install from JAX's legacy wheel index for CUDA 12.4 compatibility
+-f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+jax[cuda12_pip]==0.4.26
 
 # JAX/NN common packages
-blackjax==1.2.5
-numpyro==0.19.0
-jaxns==2.6.9
-tensorboard==2.20.0
-tensorstore==0.1.78
-flowjax==17.2.1
-pymc==5.26.1
-orbax-checkpoint==0.11.26
-flax==0.12.0
+blackjax==1.1.1
+numpyro==0.14.0
+jaxns==2.5.1
+tensorboard==2.18.0
+tensorstore==0.1.67
+flowjax==16.0.0
+pymc==5.9.1
+orbax-checkpoint==0.5.10
+flax==0.8.3
 UMNN==1.71
 nflows==0.14
 zuko==1.5.0

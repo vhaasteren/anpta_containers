@@ -96,28 +96,21 @@ RUN ${VIRTUAL_ENV}/bin/pip install -r /tmp/req-cpu.txt
 WORKDIR ${SOFTWARE_DIR}
 CMD ["bash", "-lc", "source /opt/venvs/pta/bin/activate && exec bash"]
 
+
 # ---------- GPU deps target (CUDA 12.4) ----------
 FROM base AS gpu-deps-cuda124
 ENV CUDA_HOME=/usr/local/cuda \
     PATH=/usr/local/cuda/bin:${PATH} \
     LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH}
 
-# Install NVIDIA CUDA repo keyring and cuDNN (CUDA 12.4) from APT
-RUN wget -q https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb \
- && dpkg -i cuda-keyring_1.1-1_all.deb \
- && rm -f cuda-keyring_1.1-1_all.deb \
- && apt-get update \
- && apt-get install -y --no-install-recommends libcudnn9-cuda-12 libcudnn9-dev-cuda-12 \
- && rm -rf /var/lib/apt/lists/*
-
 # GPU Python stack (CUDA 12.4)
 COPY requirements/gpu_cuda124.txt /tmp/req-gpu-cuda124.txt
 RUN ${VIRTUAL_ENV}/bin/pip install -r /tmp/req-gpu-cuda124.txt
 
-
 FROM gpu-deps-cuda124 AS gpu-cuda124-singularity
 WORKDIR ${SOFTWARE_DIR}
 CMD ["bash", "-lc", "source /opt/venvs/pta/bin/activate && exec bash"]
+
 
 # ---------- GPU deps target (CUDA 12.8) ----------
 FROM base AS gpu-deps-cuda128
@@ -128,7 +121,6 @@ ENV CUDA_HOME=/usr/local/cuda \
 # GPU Python stack (CUDA 12.8)
 COPY requirements/gpu_cuda128.txt /tmp/req-gpu-cuda128.txt
 RUN ${VIRTUAL_ENV}/bin/pip install -r /tmp/req-gpu-cuda128.txt
-
 
 FROM gpu-deps-cuda128 AS gpu-cuda128-singularity
 WORKDIR ${SOFTWARE_DIR}
