@@ -153,23 +153,12 @@ Use these for the most recent stable release:
 
 ## 🔄 Converting to Singularity
 
-Only the **GPU variants** are converted to Singularity `.sif` files, as HPC clusters are typically x86_64:
+Only the **GPU variants** are converted to Singularity `.sif` files, as HPC clusters are typically x86_64. You can build or pull `.sif` files directly from Docker Hub:
 
 ```bash
-# Pull GPU singularity variants
-docker pull vhaasteren/anpta:gpu-cu124-singularity  # CUDA 12.4
-docker pull vhaasteren/anpta:gpu-cu128-singularity  # CUDA 12.8
-docker pull vhaasteren/anpta:gpu-cu13-singularity   # CUDA 13
-
-# Save as tar and convert to Singularity (requires Singularity/Apptainer)
-docker save -o anpta_gpu_cu124.tar vhaasteren/anpta:gpu-cu124-singularity
-singularity build anpta-gpu-cu124.sif docker-archive://anpta_gpu_cu124.tar
-
-docker save -o anpta_gpu_cu128.tar vhaasteren/anpta:gpu-cu128-singularity
-singularity build anpta-gpu-cu128.sif docker-archive://anpta_gpu_cu128.tar
-
-docker save -o anpta_gpu_cu13.tar vhaasteren/anpta:gpu-cu13-singularity
-singularity build anpta-gpu-cu13.sif docker-archive://anpta_gpu_cu13.tar
+apptainer pull anpta-gpu-cu124.sif docker://vhaasteren/anpta:gpu-cu124-singularity  # CUDA 12.4
+apptainer pull anpta-gpu-cu128.sif docker://vhaasteren/anpta:gpu-cu128-singularity  # CUDA 12.8
+apptainer pull anpta-gpu-cu13.sif  docker://vhaasteren/anpta:gpu-cu13-singularity   # CUDA 13
 ```
 
 **Note:** CPU singularity images are not converted to `.sif` files since HPC clusters typically use x86_64 architecture. While Apptainer supports ARM64 Linux, it doesn't run on macOS (Apple Silicon). For automated conversion, see the repository's `build_all_singularity.sh` script.

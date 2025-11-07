@@ -1,11 +1,9 @@
 {
   "name": "anpta dev",
-  "build": {
-    "dockerfile": "Dockerfile.dev",
-    "args": {
-      "BASE_IMAGE": "vhaasteren/anpta:cpu"
-    }
-  },
+  "image": "vhaasteren/anpta:cpu",
+  "runArgs": [
+    "--user", "${localEnv:UID}:${localEnv:GID}"
+  ],
   "remoteUser": "anpta",
   "workspaceFolder": "/workspaces/anpta",
   "workspaceMount": "type=bind,source=${localWorkspaceFolder},target=/workspaces/anpta,consistency=cached",

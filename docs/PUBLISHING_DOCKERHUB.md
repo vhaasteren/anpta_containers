@@ -75,11 +75,13 @@ The easiest way to publish all variants is using the automated scripts:
 # Login to Docker Hub first
 docker login
 
-# Build and push all variants to Docker Hub
-./scripts/push_to_registry.sh v0.1.0 dockerhub
+# Ensure VERSION file in repo root contains the version (e.g., "v0.2.0")
+# Then build and push all variants to Docker Hub
+./scripts/push_to_registry.sh dockerhub
 ```
 
 The scripts handle:
+- Reading version from `VERSION` file in repo root (must exist)
 - Building all eight variants (cpu, cpu-singularity, gpu-cuda124, gpu-cuda124-singularity, gpu-cuda128, gpu-cuda128-singularity, gpu-cuda13, gpu-cuda13-singularity)
 - Multi-platform builds (amd64 + arm64 for CPU variants)
 - Creating moving aliases
@@ -233,13 +235,14 @@ DOCKER_DEFAULT_PLATFORM=linux/amd64 docker run --rm ${DOCKERHUB_REPO}:gpu-cu124 
 ## Release process
 
 1. Choose the version bump (patch/minor/major) and update requirements/pins as needed.
-2. Build and push all variants using the automated script:
+2. Update the `VERSION` file in the repo root with the new version (e.g., `v0.2.0`).
+3. Build and push all variants using the automated script:
    ```bash
    docker login
-   ./scripts/push_to_registry.sh v0.2.0 dockerhub
+   ./scripts/push_to_registry.sh dockerhub
    ```
-   This automatically builds, pushes, and creates all moving aliases for all eight variants.
-3. Create a GitHub/GitLab release with notes listing key pins (Ubuntu, CUDA, cuDNN, torch, JAX, etc.).
+   This automatically reads the version from `VERSION` file, builds, pushes, and creates all moving aliases for all eight variants.
+4. Create a GitHub/GitLab release with notes listing key pins (Ubuntu, CUDA, cuDNN, torch, JAX, etc.).
 
 ## Maintenance notes
 
