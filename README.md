@@ -106,7 +106,6 @@ docker login
 **Note:** The script reads the version from the `VERSION` file in the repo root. Update this file before running the script.
 
 For detailed instructions on publishing workflows, see:
-- [docs/TESTING_WITH_LOCAL_REGISTRY.md](docs/TESTING_WITH_LOCAL_REGISTRY.md) - Testing with local registry
 - [docs/PUBLISHING_DOCKERHUB.md](docs/PUBLISHING_DOCKERHUB.md) - Publishing to Docker Hub
 
 Versioning and tags
