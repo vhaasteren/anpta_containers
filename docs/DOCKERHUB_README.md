@@ -167,7 +167,23 @@ For detailed instructions, see the [repository documentation](https://github.com
 
 ## 🐳 Dev Containers (VS Code)
 
-These images are designed for use with VS Code Dev Containers. See the repository's `devcontainer/` directory for configuration examples.
+These images are designed for use with VS Code Dev Containers. The repository includes a ready-to-use `devcontainer.json` configuration.
+
+**Quick Setup:**
+1. Copy `devcontainer/devcontainer.json` to `.devcontainer/devcontainer.json` in your project root.
+2. Open the project in VS Code and select "Reopen in Container" when prompted.
+
+**Features:**
+- Uses the base image directly (no build step required)
+- Automatic UID/GID matching for correct file permissions
+- Pre-configured with Python, Jupyter, and development extensions
+- Python virtual environment auto-activated
+
+**Base Image Selection:**
+- Default: `vhaasteren/anpta:cpu` (CPU variant)
+- For GPU: Change `image` field to `vhaasteren/anpta:gpu-cu124`, `gpu-cu128`, or `gpu-cu13`
+
+For detailed setup instructions, see the repository's `README.md` and `devcontainer/` directory.
 
 ## 📊 Image Sizes
 

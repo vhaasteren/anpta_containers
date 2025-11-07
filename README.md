@@ -92,20 +92,18 @@ The easiest way to publish all variants to a registry is using the automated scr
 
 **Build and push to local registry (default):**
 ```bash
-./scripts/push_to_registry.sh v0.1.0
+# Ensure VERSION file in repo root contains the version (e.g., "v0.2.0")
+./scripts/push_to_registry.sh
 ```
 
 **Build and push to Docker Hub:**
 ```bash
 docker login
-./scripts/push_to_registry.sh v0.1.0 dockerhub
+# Ensure VERSION file in repo root contains the version (e.g., "v0.2.0")
+./scripts/push_to_registry.sh dockerhub
 ```
 
-**Push existing local images (without rebuilding):**
-```bash
-./scripts/push_existing_images.sh v0.1.0              # Local registry
-./scripts/push_existing_images.sh v0.1.0 dockerhub    # Docker Hub
-```
+**Note:** The script reads the version from the `VERSION` file in the repo root. Update this file before running the script.
 
 For detailed instructions on publishing workflows, see:
 - [docs/TESTING_WITH_LOCAL_REGISTRY.md](docs/TESTING_WITH_LOCAL_REGISTRY.md) - Testing with local registry
@@ -201,7 +199,9 @@ Since Docker Hub doesn't support `.sif` files, you can host your Singularity ima
 3. Build your `.sif` files (see above)
 4. Push using the automated script:
    ```bash
-   ./scripts/push_to_sylabs.sh v0.1.0
+   # Version is read from VERSION file by default, or specify explicitly:
+   ./scripts/push_to_sylabs.sh              # Uses VERSION file
+   ./scripts/push_to_sylabs.sh v0.2.0      # Override version
    ```
 
 **Collaborators can then pull directly:**
@@ -250,27 +250,33 @@ For detailed instructions, see [docs/TESTING_CUDA13_COMPATIBILITY.md](docs/TESTI
 Devcontainer (VS Code) setup
 ----------------------------
 
-This repository includes a ready-to-use Dev Container configuration under `devcontainer/` for interactive development in VS Code.
+This repository includes a ready-to-use Dev Container configuration for interactive development in VS Code.
 
-- Files:
-  - `devcontainer/devcontainer.json`: Devcontainer entrypoint that builds a small dev layer on top of a base image.
-  - `devcontainer/Dockerfile.dev`: Grants anpta user sudo permissions for ease of modification
-  - Place the above two files in a `.devcontainer` directory of your project
+- Setup:
+  1. Copy `devcontainer/devcontainer.json` to `.devcontainer/devcontainer.json` in your project root.
+  2. The devcontainer uses the base image directly (`vhaasteren/anpta:cpu`) with automatic UID/GID matching for correct file permissions.
 
 - Base image selection:
-  - By default, the Devcontainer builds FROM `anpta:cpu` (non‑root docker variant).
-  - To use the GPU base, change in `devcontainer/devcontainer.json`:
-    - `"BASE_IMAGE": "anpta:gpu"`
+  - By default, uses `vhaasteren/anpta:cpu` (CPU variant).
+  - To use a GPU variant, change the `image` field in `devcontainer.json`:
+    - `"image": "vhaasteren/anpta:gpu-cu124"` (CUDA 12.4)
+    - `"image": "vhaasteren/anpta:gpu-cu128"` (CUDA 12.8)
+    - `"image": "vhaasteren/anpta:gpu-cu13"` (CUDA 13)
+
+- Permissions:
+  - The devcontainer automatically matches your host UID/GID using `--user ${localEnv:UID}:${localEnv:GID}`.
+  - This ensures bind-mounted files have correct ownership without manual permission fixes.
+  - On macOS, ensure `UID` and `GID` are exported in your shell (VS Code will read them automatically).
 
 - VS Code customizations:
-  - The Devcontainer recommends installing useful extensions (Python, Black, Ruff, Jupyter, Pylance, YAML, GitLens).
-  - The Python venv is auto‑activated for interactive shells, and `ipykernel` is installed and registered as: “Python (pta)”.
+  - The devcontainer recommends installing useful extensions (Python, Black, Ruff, Jupyter, Pylance, YAML, GitLens).
+  - The Python venv is auto‑activated for interactive shells, and `ipykernel` is installed and registered as: "Python (pta)".
 
 - How to use:
-  1. Open the repo in VS Code with the “Dev Containers” extension installed.
-  2. When prompted, “Reopen in Container” (or use the Command Palette: “Dev Containers: Reopen in Container”).
-  3. Select the kernel “Python (pta)” in Jupyter/Notebooks.
+  1. Open the repo in VS Code with the "Dev Containers" extension installed.
+  2. When prompted, "Reopen in Container" (or use the Command Palette: "Dev Containers: Reopen in Container").
+  3. Select the kernel "Python (pta)" in Jupyter/Notebooks.
 
 - Notes:
-  - The Devcontainer layer is for interactive development only, not for CI or production.
+  - The devcontainer is for interactive development only, not for CI or production (container user has sudo rights).
   - No extra container/remote env wiring is required; the venv is on PATH and auto‑activated.
