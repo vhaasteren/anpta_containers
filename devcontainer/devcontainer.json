@@ -1,12 +1,15 @@
 {
   "name": "anpta dev",
-  "image": "vhaasteren/anpta:cpu",
+  "image": "vhaasteren/anpta:cpu-devcontainer",
   "runArgs": [
     "--user", "${localEnv:UID}:${localEnv:GID}"
   ],
-  "remoteUser": "anpta",
+  "remoteEnv": {
+    "HOME": "/workspaces/anpta/.home"
+  },
   "workspaceFolder": "/workspaces/anpta",
   "workspaceMount": "type=bind,source=${localWorkspaceFolder},target=/workspaces/anpta,consistency=cached",
+  "postCreateCommand": "mkdir -p /workspaces/anpta/.home && git config --global --add safe.directory /workspaces/anpta || true",
   "customizations": {
     "vscode": {
       "extensions": [

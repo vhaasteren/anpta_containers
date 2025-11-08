@@ -11,7 +11,7 @@ sync && perl -pi -e 's/chmod \+x/#chmod +x/' bootstrap
 ./bootstrap
 
 X11LIB="/usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)"
-./configure --x-libraries="${X11LIB}" --with-calceph="${CALCEPH}/install/lib" --enable-shared --enable-static --with-pic \
+./configure --prefix="${SOFTWARE_DIR}/tempo2/install" --x-libraries="${X11LIB}" --with-calceph="${CALCEPH}/install/lib" --enable-shared --enable-static --with-pic \
     CPPFLAGS="-I${CALCEPH}/install/include"
 
 make -j"$(nproc)"

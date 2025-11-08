@@ -14,21 +14,34 @@ These containers also have user-space versions for devcontainer use.
 Images and targets
 ------------------
 
-This repo uses a single Dockerfile with four build targets (two variants per arch/GPU):
+This repo uses a single Dockerfile with three types of build targets for different use cases:
 
-- `cpu` (non-root, for Docker runtime)
-- `cpu-singularity` (root, for Singularity/Apptainer; built but not converted to .sif - Singularity doesn't run on ARM64)
-- `gpu` (non-root, for Docker runtime; BASE_IMAGE=`nvidia/cuda:12.4.1-devel-ubuntu22.04`)
-- `gpu-singularity` (root, for Singularity/Apptainer; converted to .sif for HPC clusters)
+**Singularity targets** (for HPC cluster conversion to `.sif`):
+- `cpu-singularity` (root user, for Singularity/Apptainer conversion)
+- `gpu-cuda124-singularity` (CUDA 12.4, root user)
+- `gpu-cuda128-singularity` (CUDA 12.8, root user)
+- `gpu-cuda13-singularity` (CUDA 13, root user)
 
-Both CPU variants are functionally identical; the "docker" variant adds a non-root user and permissions. GPU variants additionally include CUDA/cuDNN, torch+cu124, cupy, pycuda, JAX CUDA.
+**Devcontainer targets** (for VS Code Dev Containers):
+- `cpu-devcontainer` (includes VS Code tools, uses `--user` flag for host UID/GID)
+- `gpu-cuda124-devcontainer` (CUDA 12.4 + VS Code tools)
+- `gpu-cuda128-devcontainer` (CUDA 12.8 + VS Code tools)
+- `gpu-cuda13-devcontainer` (CUDA 13 + VS Code tools)
 
-**Note:** Only the GPU variant is converted to Singularity `.sif` files, as HPC clusters are typically x86_64 and Singularity/Apptainer doesn't run on ARM64 architecture.
+**Direct Docker usage targets** (for standalone Docker runs with UID/GID mapping):
+- `cpu` (uses entrypoint script for dynamic UID/GID remapping)
+- `gpu-cuda124` (CUDA 12.4 + entrypoint script)
+- `gpu-cuda128` (CUDA 12.8 + entrypoint script)
+- `gpu-cuda13` (CUDA 13 + entrypoint script)
+
+All variants share the same software stack. GPU variants additionally include CUDA/cuDNN, torch, cupy, pycuda, and JAX CUDA. The direct usage targets use an entrypoint script (`entrypoint-uidmap.sh`) that automatically remaps the container's `anpta` user to match your host UID/GID, ensuring correct file permissions on bind-mounted volumes.
+
+**Note:** Only the GPU variants are typically converted to Singularity `.sif` files, as HPC clusters are typically x86_64 and Singularity/Apptainer doesn't run on ARM64 architecture.
 
 Build with docker buildx
 ------------------------
 
-CPU (multi-arch, docker variant):
+**CPU (multi-arch, direct usage):**
 
 <pre><code>
 docker buildx build \
@@ -39,7 +52,7 @@ docker buildx build \
   .
 </code></pre>
 
-CPU (multi-arch, singularity variant):
+**CPU (multi-arch, singularity variant):**
 
 <pre><code>
 docker buildx build \
@@ -50,30 +63,54 @@ docker buildx build \
   .
 </code></pre>
 
-GPU (amd64, docker variant):
+**CPU (multi-arch, devcontainer):**
+
+<pre><code>
+docker buildx build \
+  --platform linux/amd64,linux/arm64 \
+  --target cpu-devcontainer \
+  -t anpta:cpu-devcontainer \
+  --build-arg BASE_IMAGE=ubuntu:22.04 \
+  .
+</code></pre>
+
+**GPU (amd64, direct usage, CUDA 12.4):**
 
 <pre><code>
 docker buildx build \
   --platform linux/amd64 \
-  --target gpu \
-  -t anpta:gpu-cu124 \
+  --target gpu-cuda124 \
+  -t anpta:gpu-cuda124 \
   --build-arg BASE_IMAGE=nvidia/cuda:12.4.1-devel-ubuntu22.04 \
   .
 </code></pre>
 
-GPU (amd64, singularity variant):
+**GPU (amd64, singularity variant, CUDA 12.4):**
 
 <pre><code>
 docker buildx build \
   --platform linux/amd64 \
-  --target gpu-singularity \
-  -t anpta:gpu-singularity \
+  --target gpu-cuda124-singularity \
+  -t anpta:gpu-cuda124-singularity \
   --build-arg BASE_IMAGE=nvidia/cuda:12.4.1-devel-ubuntu22.04 \
   .
 </code></pre>
-Notes for buildx:
 
-- The GPU target is linux/amd64. On Apple Silicon, ensure your buildx builder supports cross-building to amd64 (QEMU). Check with:
+**GPU (amd64, devcontainer, CUDA 12.4):**
+
+<pre><code>
+docker buildx build \
+  --platform linux/amd64 \
+  --target gpu-cuda124-devcontainer \
+  -t anpta:gpu-cuda124-devcontainer \
+  --build-arg BASE_IMAGE=nvidia/cuda:12.4.1-devel-ubuntu22.04 \
+  .
+</code></pre>
+
+Similar patterns apply for CUDA 12.8 (`gpu-cuda128-*`) and CUDA 13 (`gpu-cuda13-*`) targets.
+**Notes for buildx:**
+
+- The GPU targets are linux/amd64 only. On Apple Silicon, ensure your buildx builder supports cross-building to amd64 (QEMU). Check with:
 
   <pre><code>
   docker buildx ls
@@ -82,7 +119,7 @@ Notes for buildx:
 - Alternatively, set a default platform for the command:
 
   <pre><code>
-  DOCKER_DEFAULT_PLATFORM=linux/amd64 docker buildx build --target gpu -t anpta:gpu-cu124 --build-arg BASE_IMAGE=nvidia/cuda:12.4.1-devel-ubuntu22.04 .
+  DOCKER_DEFAULT_PLATFORM=linux/amd64 docker buildx build --target gpu-cuda124 -t anpta:gpu-cuda124 --build-arg BASE_IMAGE=nvidia/cuda:12.4.1-devel-ubuntu22.04 .
   </code></pre>
 
 Publishing to Registries
@@ -112,30 +149,71 @@ Versioning and tags
 -------------------
 
 - Suggested immutable tags (examples):
-  - `v0.1.0-cpu-ubuntu22.04`, `v0.1.0-cpu-singularity-ubuntu22.04`
-  - `v0.1.0-gpu-cu124-ubuntu22.04`, `v0.1.0-gpu-singularity-ubuntu22.04`
-- Stable aliases (move on each release): `cpu`, `cpu-singularity`, `gpu-cu124`, `gpu-singularity`.
+  - `v0.1.0-cpu-ubuntu22.04`, `v0.1.0-cpu-singularity-ubuntu22.04`, `v0.1.0-cpu-devcontainer-ubuntu22.04`
+  - `v0.1.0-gpu-cuda124-ubuntu22.04`, `v0.1.0-gpu-cuda124-singularity-ubuntu22.04`, `v0.1.0-gpu-cuda124-devcontainer-ubuntu22.04`
+- Stable aliases (move on each release): `cpu`, `cpu-singularity`, `cpu-devcontainer`, `gpu-cuda124`, `gpu-cuda124-singularity`, `gpu-cuda124-devcontainer`, etc.
 - CPU images should be published as multi-arch (linux/amd64, linux/arm64); GPU as linux/amd64 only.
 
 
 Starting locally
 ----------------
 
-After building with buildx, run the container with:
+**Direct Docker usage (with automatic UID/GID mapping):**
+
+The direct usage targets (`cpu`, `gpu-cuda124`, etc.) automatically remap the container user to match your host UID/GID, ensuring correct file permissions on bind-mounted volumes:
 
 <pre><code>
-docker run --rm -it anpta:gpu-cu124 bash
-# or
-docker run --rm -it anpta:cpu bash
+# CPU variant
+docker run --rm -it \
+  -e HOST_UID=$(id -u) -e HOST_GID=$(id -g) \
+  -v "$PWD":/work -w /work \
+  anpta:cpu bash
+
+# GPU variant (CUDA 12.4)
+docker run --rm -it \
+  -e HOST_UID=$(id -u) -e HOST_GID=$(id -g) \
+  -v "$PWD":/work -w /work \
+  --gpus all \
+  anpta:gpu-cuda124 bash
 </code></pre>
+
+The entrypoint script (`entrypoint-uidmap.sh`) automatically:
+- Remaps the `anpta` user's UID/GID to match your host
+- Ensures the home directory is properly owned
+- **Does not chown the virtual environment** (startup is instant)
+- Redirects `pip install` to `/work/.pyuser` by default (fast, no permissions issues)
+- Redirects Python bytecode cache to `/work/.pycache`
+
+**Installing Python packages:**
+
+By default, packages install to the workspace (fast, no permissions issues):
+
+```bash
+pip install <package>         # installs into /work/.pyuser
+python -c "import <package>"  # works immediately
+```
+
+If you *must* install into the baked virtualenv (slower, opt-in):
+
+```bash
+docker run --rm -it \
+  -e HOST_UID=$(id -u) -e HOST_GID=$(id -g) \
+  -e VENV_WRITABLE=1 \
+  -v "$PWD":/work -w /work \
+  anpta:cpu
+# then:
+pip install -e .
+```
+
+**Note:** If you don't provide `HOST_UID`/`HOST_GID`, the container will run with the default `anpta` user IDs. For proper file permissions on bind mounts, always provide these environment variables.
 
 Save the docker image
 ---------------------
 
-To convert the docker image to a singularity container, it may be necessarity to transport it first, which means we need it as a file. Saving the docker image as a file can be done with:
+To convert the docker image to a singularity container, it may be necessary to transport it first, which means we need it as a file. Saving the docker image as a file can be done with:
 
 <pre><code>
-docker save -o anpta_gpu_image.tar anpta:gpu-singularity
+docker save -o anpta_gpu_image.tar anpta:gpu-cuda124-singularity
 # or
 docker save -o anpta_cpu_image.tar anpta:cpu-singularity
 </code></pre>
@@ -148,8 +226,8 @@ Convert the docker image to a singularity container
 You can build .sif files directly from Docker image tags using Docker itself (no need for Singularity locally):
 
 <pre><code>
-# Build GPU Singularity image
-./scripts/build_singularity_with_docker.sh anpta:gpu-singularity anpta-gpu.sif
+# Build GPU Singularity image (CUDA 12.4)
+./scripts/build_singularity_with_docker.sh anpta:gpu-cuda124-singularity anpta-gpu-cuda124.sif
 
 # Or use the automated script
 ./scripts/build_all_singularity.sh
@@ -164,7 +242,7 @@ For detailed instructions on building Singularity images on Apple Silicon, see [
 First save the Docker GPU image as a tar file:
 
 <pre><code>
-docker save -o anpta_gpu_image.tar anpta:gpu-singularity
+docker save -o anpta_gpu_image.tar anpta:gpu-cuda124-singularity
 </code></pre>
 
 Then convert to Singularity. On systems with Singularity installed natively:
@@ -251,31 +329,41 @@ Devcontainer (VS Code) setup
 
 This repository includes a ready-to-use Dev Container configuration for interactive development in VS Code.
 
-- Setup:
-  1. Copy `devcontainer/devcontainer.json` to `.devcontainer/devcontainer.json` in your project root.
-  2. The devcontainer uses the base image directly (`vhaasteren/anpta:cpu`) with automatic UID/GID matching for correct file permissions.
+**Setup:**
+1. Copy `devcontainer/devcontainer.json` to `.devcontainer/devcontainer.json` in your project root.
+2. The devcontainer uses the `*-devcontainer` target images (e.g., `vhaasteren/anpta:cpu-devcontainer`) which include VS Code tools and proper user configuration.
 
-- Base image selection:
-  - By default, uses `vhaasteren/anpta:cpu` (CPU variant).
-  - To use a GPU variant, change the `image` field in `devcontainer.json`:
-    - `"image": "vhaasteren/anpta:gpu-cu124"` (CUDA 12.4)
-    - `"image": "vhaasteren/anpta:gpu-cu128"` (CUDA 12.8)
-    - `"image": "vhaasteren/anpta:gpu-cu13"` (CUDA 13)
+**Base image selection:**
+- By default, uses `vhaasteren/anpta:cpu-devcontainer` (CPU variant).
+- To use a GPU variant, change the `image` field in `devcontainer.json`:
+  - `"image": "vhaasteren/anpta:gpu-cuda124-devcontainer"` (CUDA 12.4)
+  - `"image": "vhaasteren/anpta:gpu-cuda128-devcontainer"` (CUDA 12.8)
+  - `"image": "vhaasteren/anpta:gpu-cuda13-devcontainer"` (CUDA 13)
 
-- Permissions:
-  - The devcontainer automatically matches your host UID/GID using `--user ${localEnv:UID}:${localEnv:GID}`.
-  - This ensures bind-mounted files have correct ownership without manual permission fixes.
-  - On macOS, ensure `UID` and `GID` are exported in your shell (VS Code will read them automatically).
+**Permissions and user mapping:**
+- The devcontainer uses `--user ${localEnv:UID}:${localEnv:GID}` to run processes as your host UID/GID.
+- This ensures bind-mounted files in `/workspaces/anpta` are owned by your host user.
+- The `$HOME` environment variable is set to `/workspaces/anpta/.home` (created automatically) to provide a writable home directory.
+- On macOS/Linux, ensure `UID` and `GID` are exported in your shell (VS Code will read them automatically):
+  ```bash
+  export UID=$(id -u)
+  export GID=$(id -g)
+  ```
 
-- VS Code customizations:
-  - The devcontainer recommends installing useful extensions (Python, Black, Ruff, Jupyter, Pylance, YAML, GitLens).
-  - The Python venv is auto‑activated for interactive shells, and `ipykernel` is installed and registered as: "Python (pta)".
+**VS Code customizations:**
+- The devcontainer recommends installing useful extensions (Python, Black, Ruff, Jupyter, Pylance, YAML, GitLens).
+- The Python venv is auto‑activated for interactive shells.
+- `ipykernel` is installed with `--sys-prefix` and registered as "Python (pta)" (kernel spec is in the venv, independent of `$HOME`).
 
-- How to use:
-  1. Open the repo in VS Code with the "Dev Containers" extension installed.
-  2. When prompted, "Reopen in Container" (or use the Command Palette: "Dev Containers: Reopen in Container").
-  3. Select the kernel "Python (pta)" in Jupyter/Notebooks.
+**How to use:**
+1. Open the repo in VS Code with the "Dev Containers" extension installed.
+2. When prompted, "Reopen in Container" (or use the Command Palette: "Dev Containers: Reopen in Container").
+3. Select the kernel "Python (pta)" in Jupyter/Notebooks.
 
-- Notes:
-  - The devcontainer is for interactive development only, not for CI or production (container user has sudo rights).
-  - No extra container/remote env wiring is required; the venv is on PATH and auto‑activated.
+**Notes:**
+- The devcontainer is for interactive development only, not for CI or production (container user has sudo rights).
+- No extra container/remote env wiring is required; the venv is on PATH and auto‑activated.
+- Files created in the workspace will be owned by your host user, ensuring seamless file permissions.
+- The venv is **not chowned** at build time (faster builds, instant startup).
+- The kernel is installed with `--sys-prefix`, so it works regardless of `$HOME`.
+- We never chown `/opt/software` (read-only system libraries).
