@@ -47,9 +47,9 @@ fi
 
 # Shared cache refs (one per family)
 CPU_CACHE_REF="${LOCAL_REPO}:cache-cpu"
-GPU_CU124_CACHE_REF="${LOCAL_REPO}:cache-gpu-cu124"
-GPU_CU128_CACHE_REF="${LOCAL_REPO}:cache-gpu-cu128"
-GPU_CU13_CACHE_REF="${LOCAL_REPO}:cache-gpu-cu13"
+GPU_CU124_CACHE_REF="${LOCAL_REPO}:cache-gpu-cuda124"
+GPU_CU128_CACHE_REF="${LOCAL_REPO}:cache-gpu-cuda128"
+GPU_CU13_CACHE_REF="${LOCAL_REPO}:cache-gpu-cuda13"
 
 # Colors for output
 RED='\033[0;31m'
@@ -143,24 +143,24 @@ check_prerequisites() {
 
 # Build and push a variant (with registry-backed cache import/export)
 build_and_push() {
-    local target="$1"             # Dockerfile target name
-    local platforms="$2"          # e.g. "linux/amd64,linux/arm64"
-    local base_image="$3"         # e.g. "ubuntu:24.04"
-    local tag_suffix="$4"         # e.g. "cpu-ubuntu24.04"
-    local alias_tag="$5"          # e.g. "cpu"
-    local family_cache_ref="$6"   # e.g. "$CPU_CACHE_REF"
-    local extra_cache_from="${7:-}"   # optional: another image tag to use as cache source
+    local target="$1"               # Dockerfile target name
+    local platforms="$2"            # e.g. "linux/amd64,linux/arm64"
+    local base_image="$3"           # e.g. "ubuntu:24.04"
+    local tag_suffix="$4"           # e.g. "cpu-ubuntu24.04"
+    local moving_tag="$5"           # the ONE canonical moving tag, e.g. "cpu" or "gpu-cuda124"
+    local family_cache_ref="$6"     # e.g. "$CPU_CACHE_REF"
+    local extra_cache_from="${7:-}" # optional: another image tag to use as cache source
 
     info "Building ${target} for platforms: ${platforms}"
 
     local full_tag="${LOCAL_REPO}:${VERSION}-${tag_suffix}"
-    local target_alias="${LOCAL_REPO}:${target}"
-    info "Tags: ${full_tag} (versioned), ${target_alias} (moving target alias)"
+    local moving_ref="${LOCAL_REPO}:${moving_tag}"
+    info "Tags: ${full_tag} (versioned), ${moving_ref} (moving)"
 
     # cache-from: shared family cache, prior target alias, optional extra
     local cache_from_flags=(
         "--cache-from=type=registry,ref=${family_cache_ref}"
-        "--cache-from=type=registry,ref=${target_alias}"
+        "--cache-from=type=registry,ref=${moving_ref}"
     )
     if [ -n "${extra_cache_from}" ]; then
         cache_from_flags+=("--cache-from=type=registry,ref=${LOCAL_REPO}:${extra_cache_from}")
@@ -178,7 +178,7 @@ build_and_push() {
         --platform "${platforms}"
         --target "${target}"
         -t "${full_tag}"
-        -t "${target_alias}"
+        -t "${moving_ref}"
         --build-arg "BASE_IMAGE=${base_image}"
         --build-arg "BUILDKIT_INLINE_CACHE=1"
         "${cache_from_flags[@]}"
@@ -189,13 +189,7 @@ build_and_push() {
 
     info "Starting build and push for ${full_tag} ..."
     docker "${args[@]}"
-    info "Successfully pushed ${full_tag} and ${target_alias}"
-
-    if [ -n "${alias_tag}" ]; then
-        info "Creating alias ${LOCAL_REPO}:${alias_tag} → ${full_tag}"
-        docker buildx imagetools create -t "${LOCAL_REPO}:${alias_tag}" "${full_tag}"
-        info "Alias created: ${LOCAL_REPO}:${alias_tag}"
-    fi
+    info "Successfully pushed ${full_tag} and ${moving_ref}"
 }
 
 # Main execution
@@ -251,8 +245,8 @@ main() {
         "gpu-cuda124-singularity" \
         "linux/amd64" \
         "nvidia/cuda:12.4.0-devel-ubuntu22.04" \
-        "gpu-cu124-singularity-ubuntu22.04" \
-        "gpu-cu124-singularity" \
+        "gpu-cuda124-singularity-ubuntu22.04" \
+        "gpu-cuda124-singularity" \
         "${GPU_CU124_CACHE_REF}"
     echo ""
     
@@ -261,8 +255,8 @@ main() {
         "gpu-cuda124" \
         "linux/amd64" \
         "nvidia/cuda:12.4.0-devel-ubuntu22.04" \
-        "gpu-cu124-ubuntu22.04" \
-        "gpu-cu124" \
+        "gpu-cuda124-ubuntu22.04" \
+        "gpu-cuda124" \
         "${GPU_CU124_CACHE_REF}" \
         "gpu-cuda124-singularity"
     echo ""
@@ -272,8 +266,8 @@ main() {
         "gpu-cuda124-devcontainer" \
         "linux/amd64" \
         "nvidia/cuda:12.4.0-devel-ubuntu22.04" \
-        "gpu-cu124-devcontainer-ubuntu22.04" \
-        "gpu-cu124-devcontainer" \
+        "gpu-cuda124-devcontainer-ubuntu22.04" \
+        "gpu-cuda124-devcontainer" \
         "${GPU_CU124_CACHE_REF}" \
         "gpu-cuda124-singularity"
     echo ""
@@ -283,8 +277,8 @@ main() {
         "gpu-cuda128-singularity" \
         "linux/amd64" \
         "nvidia/cuda:12.8.1-cudnn-devel-ubuntu24.04" \
-        "gpu-cu128-singularity-ubuntu24.04" \
-        "gpu-cu128-singularity" \
+        "gpu-cuda128-singularity-ubuntu24.04" \
+        "gpu-cuda128-singularity" \
         "${GPU_CU128_CACHE_REF}"
     echo ""
     
@@ -293,8 +287,8 @@ main() {
         "gpu-cuda128" \
         "linux/amd64" \
         "nvidia/cuda:12.8.1-cudnn-devel-ubuntu24.04" \
-        "gpu-cu128-ubuntu24.04" \
-        "gpu-cu128" \
+        "gpu-cuda128-ubuntu24.04" \
+        "gpu-cuda128" \
         "${GPU_CU128_CACHE_REF}" \
         "gpu-cuda128-singularity"
     echo ""
@@ -304,8 +298,8 @@ main() {
         "gpu-cuda128-devcontainer" \
         "linux/amd64" \
         "nvidia/cuda:12.8.1-cudnn-devel-ubuntu24.04" \
-        "gpu-cu128-devcontainer-ubuntu24.04" \
-        "gpu-cu128-devcontainer" \
+        "gpu-cuda128-devcontainer-ubuntu24.04" \
+        "gpu-cuda128-devcontainer" \
         "${GPU_CU128_CACHE_REF}" \
         "gpu-cuda128-singularity"
     echo ""
@@ -315,8 +309,8 @@ main() {
         "gpu-cuda13-singularity" \
         "linux/amd64" \
         "nvidia/cuda:13.0.1-cudnn-devel-ubuntu24.04" \
-        "gpu-cu13-singularity-ubuntu24.04" \
-        "gpu-cu13-singularity" \
+        "gpu-cuda13-singularity-ubuntu24.04" \
+        "gpu-cuda13-singularity" \
         "${GPU_CU13_CACHE_REF}"
     echo ""
     
@@ -325,8 +319,8 @@ main() {
         "gpu-cuda13" \
         "linux/amd64" \
         "nvidia/cuda:13.0.1-cudnn-devel-ubuntu24.04" \
-        "gpu-cu13-ubuntu24.04" \
-        "gpu-cu13" \
+        "gpu-cuda13-ubuntu24.04" \
+        "gpu-cuda13" \
         "${GPU_CU13_CACHE_REF}" \
         "gpu-cuda13-singularity"
     echo ""
@@ -336,8 +330,8 @@ main() {
         "gpu-cuda13-devcontainer" \
         "linux/amd64" \
         "nvidia/cuda:13.0.1-cudnn-devel-ubuntu24.04" \
-        "gpu-cu13-devcontainer-ubuntu24.04" \
-        "gpu-cu13-devcontainer" \
+        "gpu-cuda13-devcontainer-ubuntu24.04" \
+        "gpu-cuda13-devcontainer" \
         "${GPU_CU13_CACHE_REF}" \
         "gpu-cuda13-singularity"
     echo ""
@@ -349,15 +343,15 @@ main() {
     info "  - ${LOCAL_REPO}:${VERSION}-cpu-singularity-ubuntu24.04 → ${LOCAL_REPO}:cpu-singularity"
     info "  - ${LOCAL_REPO}:${VERSION}-cpu-ubuntu24.04 → ${LOCAL_REPO}:cpu"
     info "  - ${LOCAL_REPO}:${VERSION}-cpu-devcontainer-ubuntu24.04 → ${LOCAL_REPO}:cpu-devcontainer"
-    info "  - ${LOCAL_REPO}:${VERSION}-gpu-cu124-singularity-ubuntu22.04 → ${LOCAL_REPO}:gpu-cu124-singularity"
-    info "  - ${LOCAL_REPO}:${VERSION}-gpu-cu124-ubuntu22.04 → ${LOCAL_REPO}:gpu-cu124"
-    info "  - ${LOCAL_REPO}:${VERSION}-gpu-cu124-devcontainer-ubuntu22.04 → ${LOCAL_REPO}:gpu-cu124-devcontainer"
-    info "  - ${LOCAL_REPO}:${VERSION}-gpu-cu128-singularity-ubuntu24.04 → ${LOCAL_REPO}:gpu-cu128-singularity"
-    info "  - ${LOCAL_REPO}:${VERSION}-gpu-cu128-ubuntu24.04 → ${LOCAL_REPO}:gpu-cu128"
-    info "  - ${LOCAL_REPO}:${VERSION}-gpu-cu128-devcontainer-ubuntu24.04 → ${LOCAL_REPO}:gpu-cu128-devcontainer"
-    info "  - ${LOCAL_REPO}:${VERSION}-gpu-cu13-singularity-ubuntu24.04 → ${LOCAL_REPO}:gpu-cu13-singularity"
-    info "  - ${LOCAL_REPO}:${VERSION}-gpu-cu13-ubuntu24.04 → ${LOCAL_REPO}:gpu-cu13"
-    info "  - ${LOCAL_REPO}:${VERSION}-gpu-cu13-devcontainer-ubuntu24.04 → ${LOCAL_REPO}:gpu-cu13-devcontainer"
+    info "  - ${LOCAL_REPO}:${VERSION}-gpu-cuda124-singularity-ubuntu22.04 → ${LOCAL_REPO}:gpu-cuda124-singularity"
+    info "  - ${LOCAL_REPO}:${VERSION}-gpu-cuda124-ubuntu22.04 → ${LOCAL_REPO}:gpu-cuda124"
+    info "  - ${LOCAL_REPO}:${VERSION}-gpu-cuda124-devcontainer-ubuntu22.04 → ${LOCAL_REPO}:gpu-cuda124-devcontainer"
+    info "  - ${LOCAL_REPO}:${VERSION}-gpu-cuda128-singularity-ubuntu24.04 → ${LOCAL_REPO}:gpu-cuda128-singularity"
+    info "  - ${LOCAL_REPO}:${VERSION}-gpu-cuda128-ubuntu24.04 → ${LOCAL_REPO}:gpu-cuda128"
+    info "  - ${LOCAL_REPO}:${VERSION}-gpu-cuda128-devcontainer-ubuntu24.04 → ${LOCAL_REPO}:gpu-cuda128-devcontainer"
+    info "  - ${LOCAL_REPO}:${VERSION}-gpu-cuda13-singularity-ubuntu24.04 → ${LOCAL_REPO}:gpu-cuda13-singularity"
+    info "  - ${LOCAL_REPO}:${VERSION}-gpu-cuda13-ubuntu24.04 → ${LOCAL_REPO}:gpu-cuda13"
+    info "  - ${LOCAL_REPO}:${VERSION}-gpu-cuda13-devcontainer-ubuntu24.04 → ${LOCAL_REPO}:gpu-cuda13-devcontainer"
     info ""
     info "View at: ${REGISTRY_URL}"
 }
