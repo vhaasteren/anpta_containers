@@ -4,11 +4,11 @@ AEI PTA analysis docker & singularity
 Purpose
 -------
 
-This repo provides a reproducible docker image for PTA analysis. The main goal is for this image to be converted into a singularity container for use on High Throughput Clusters. The workflow is as follows
+This repo provides a reproducible docker image for PTA analysis. The main goals for this image are:
+- converted into a singularity container for use computing clusters
+- use as a local environment for analysis and development
 
-First create the docker image from the Dockerfile locally. Then, the docker image needs to be saved to a tarball so that it can be copied over to a computing cluster that runs singularity (in case singularity does not run locally, like on apple silicon). Then, singularity can convert the docker tarball to a singularity container.
-
-These containers also have user-space versions for devcontainer use.
+The shared environment between local development and cluster usage makes work hassle-free, without surprises and frustration. While these containers are buildable locally, they are hosted on Dockerhub under `vhaasteren/anpta`. These containers also have user-space versions for devcontainer use.
 
 
 Images and targets
