@@ -5,11 +5,10 @@
     "--user", "${localEnv:UID}:${localEnv:GID}"
   ],
   "remoteEnv": {
-    "HOME": "/workspaces/anpta/.home"
+    "HOME": "/workspaces/${localWorkspaceFolderBasename}/.home"
   },
-  "workspaceFolder": "/workspaces/anpta",
-  "workspaceMount": "type=bind,source=${localWorkspaceFolder},target=/workspaces/anpta,consistency=cached",
-  "postCreateCommand": "mkdir -p /workspaces/anpta/.home && git config --global --add safe.directory /workspaces/anpta || true",
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+  "postCreateCommand": "mkdir -p \"/workspaces/${localWorkspaceFolderBasename}/.home\" && git config --global --add safe.directory \"/workspaces/${localWorkspaceFolderBasename}\" || true",
   "customizations": {
     "vscode": {
       "extensions": [
