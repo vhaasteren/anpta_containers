@@ -79,6 +79,9 @@ COPY requirements/common.txt /tmp/req-common.txt
 RUN ${VIRTUAL_ENV}/bin/pip install -r /tmp/req-common.txt
 
 # ---------- PSRCHIVE (with Python bindings) ----------
+ENV CPPFLAGS="-I${SOFTWARE_DIR}/tempo2/install/include -I${CALCEPH}/install/include -I${HEALPIX_DIR}/include/healpix_cxx ${CPPFLAGS}" \
+    LDFLAGS="-L${SOFTWARE_DIR}/tempo2/install/lib -L${CALCEPH}/install/lib -L${HEALPIX_DIR}/lib ${LDFLAGS}" \
+    HEALPIX="${HEALPIX_DIR}"
 RUN bash /usr/local/bin/build_psrchive.sh
 ENV PATH="${SOFTWARE_DIR}/psrchive/install/bin:${PATH}" \
     LD_LIBRARY_PATH="${SOFTWARE_DIR}/psrchive/install/lib:${LD_LIBRARY_PATH}"

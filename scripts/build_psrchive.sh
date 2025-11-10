@@ -19,9 +19,7 @@ cd psrchive
   --enable-shared \
   --enable-python \
   --with-python-sys-prefix \
-  PYTHON="${VIRTUAL_ENV}/bin/python3" \
-  CPPFLAGS="-I${CALCEPH}/install/include -I${SOFTWARE_DIR}/tempo2/include ${CPPFLAGS:-}" \
-  LDFLAGS="-L${CALCEPH}/install/lib -L${SOFTWARE_DIR}/tempo2/lib ${LDFLAGS:-}"
+  PYTHON="${VIRTUAL_ENV}/bin/python3"
 
 make -j"$(nproc)"
 make check
