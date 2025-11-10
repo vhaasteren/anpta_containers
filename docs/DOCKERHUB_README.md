@@ -32,13 +32,13 @@ docker run --rm -it \
 
 This repository provides three types of container variants for different use cases:
 
-### Direct Docker Usage (with UID/GID mapping)
+### Unified Runtime (Docker & Dev Containers)
 | Tag | Description | Platforms | Base OS | Use Case |
 |-----|-------------|-----------|---------|----------|
-| `cpu` | CPU-optimized with entrypoint script | `linux/amd64`, `linux/arm64` | Ubuntu 24.04 | Standalone Docker runs |
-| `gpu-cuda124` | GPU CUDA 12.4 with entrypoint script | `linux/amd64` | Ubuntu 22.04 | CUDA 12.4 workloads, ML/AI |
-| `gpu-cuda128` | GPU CUDA 12.8 with entrypoint script | `linux/amd64` | Ubuntu 24.04 | CUDA 12.8 workloads, ML/AI |
-| `gpu-cuda13` | GPU CUDA 13 with entrypoint script | `linux/amd64` | Ubuntu 24.04 | CUDA 13 workloads, ML/AI |
+| `cpu` | CPU-optimized (unified image) | `linux/amd64`, `linux/arm64` | Ubuntu 24.04 | Standalone Docker runs & VS Code Dev Containers |
+| `gpu-cuda124` | GPU CUDA 12.4 (unified image) | `linux/amd64` | Ubuntu 22.04 | CUDA 12.4 workloads, ML/AI, Dev Containers |
+| `gpu-cuda128` | GPU CUDA 12.8 (unified image) | `linux/amd64` | Ubuntu 24.04 | CUDA 12.8 workloads, ML/AI, Dev Containers |
+| `gpu-cuda13` | GPU CUDA 13 (unified image) | `linux/amd64` | Ubuntu 24.04 | CUDA 13 workloads, ML/AI, Dev Containers |
 
 ### Singularity/Apptainer Conversion
 | Tag | Description | Platforms | Base OS | Use Case |
@@ -48,15 +48,7 @@ This repository provides three types of container variants for different use cas
 | `gpu-cuda128-singularity` | GPU CUDA 12.8 (root user) | `linux/amd64` | Ubuntu 24.04 | Singularity/Apptainer conversion |
 | `gpu-cuda13-singularity` | GPU CUDA 13 (root user) | `linux/amd64` | Ubuntu 24.04 | Singularity/Apptainer conversion |
 
-### VS Code Dev Containers
-| Tag | Description | Platforms | Base OS | Use Case |
-|-----|-------------|-----------|---------|----------|
-| `cpu-devcontainer` | CPU with VS Code tools | `linux/amd64`, `linux/arm64` | Ubuntu 24.04 | VS Code Dev Containers |
-| `gpu-cuda124-devcontainer` | GPU CUDA 12.4 with VS Code tools | `linux/amd64` | Ubuntu 22.04 | VS Code Dev Containers |
-| `gpu-cuda128-devcontainer` | GPU CUDA 12.8 with VS Code tools | `linux/amd64` | Ubuntu 24.04 | VS Code Dev Containers |
-| `gpu-cuda13-devcontainer` | GPU CUDA 13 with VS Code tools | `linux/amd64` | Ubuntu 24.04 | VS Code Dev Containers |
-
-**Note:** Direct usage targets automatically remap the container user to match your host UID/GID via an entrypoint script, ensuring correct file permissions on bind-mounted volumes.
+**Note:** The unified runtime images automatically remap the container user to match your host UID/GID via an entrypoint script, ensuring correct file permissions on bind-mounted volumes. The same image works for both direct Docker usage and VS Code Dev Containers.
 
 ## 🔬 Included Software Stack
 
@@ -218,31 +210,23 @@ docker run --rm -it -p 8888:8888 \
 Use these for reproducible builds (v0.2.0):
 - `v0.2.0-cpu-ubuntu24.04`
 - `v0.2.0-cpu-singularity-ubuntu24.04`
-- `v0.2.0-cpu-devcontainer-ubuntu24.04`
 - `v0.2.0-gpu-cuda124-ubuntu22.04`
 - `v0.2.0-gpu-cuda124-singularity-ubuntu22.04`
-- `v0.2.0-gpu-cuda124-devcontainer-ubuntu22.04`
 - `v0.2.0-gpu-cuda128-ubuntu24.04`
 - `v0.2.0-gpu-cuda128-singularity-ubuntu24.04`
-- `v0.2.0-gpu-cuda128-devcontainer-ubuntu24.04`
 - `v0.2.0-gpu-cuda13-ubuntu24.04`
 - `v0.2.0-gpu-cuda13-singularity-ubuntu24.04`
-- `v0.2.0-gpu-cuda13-devcontainer-ubuntu24.04`
 
 ### Moving Aliases (Latest Stable)
 Use these for the most recent stable release:
-- `cpu` → Latest CPU direct usage variant (Ubuntu 24.04)
+- `cpu` → Latest CPU unified runtime variant (Ubuntu 24.04)
 - `cpu-singularity` → Latest CPU Singularity variant (Ubuntu 24.04)
-- `cpu-devcontainer` → Latest CPU Dev Container variant (Ubuntu 24.04)
-- `gpu-cuda124` → Latest GPU CUDA 12.4 direct usage variant (Ubuntu 22.04)
+- `gpu-cuda124` → Latest GPU CUDA 12.4 unified runtime variant (Ubuntu 22.04)
 - `gpu-cuda124-singularity` → Latest GPU CUDA 12.4 Singularity variant
-- `gpu-cuda124-devcontainer` → Latest GPU CUDA 12.4 Dev Container variant
-- `gpu-cuda128` → Latest GPU CUDA 12.8 direct usage variant (Ubuntu 24.04)
+- `gpu-cuda128` → Latest GPU CUDA 12.8 unified runtime variant (Ubuntu 24.04)
 - `gpu-cuda128-singularity` → Latest GPU CUDA 12.8 Singularity variant
-- `gpu-cuda128-devcontainer` → Latest GPU CUDA 12.8 Dev Container variant
-- `gpu-cuda13` → Latest GPU CUDA 13 direct usage variant (Ubuntu 24.04)
+- `gpu-cuda13` → Latest GPU CUDA 13 unified runtime variant (Ubuntu 24.04)
 - `gpu-cuda13-singularity` → Latest GPU CUDA 13 Singularity variant
-- `gpu-cuda13-devcontainer` → Latest GPU CUDA 13 Dev Container variant
 
 **Recommendation:** Use immutable version tags for production workflows to ensure reproducibility.
 
@@ -274,32 +258,33 @@ These images are designed for use with VS Code Dev Containers. The repository in
 3. Open the project in VS Code and select "Reopen in Container" when prompted.
 
 **Features:**
-- Uses the `*-devcontainer` target images (e.g., `vhaasteren/anpta:cpu-devcontainer`)
-- Automatic UID/GID matching via `--user ${localEnv:UID}:${localEnv:GID}` for correct file permissions
-- Writable `$HOME` directory at `/workspaces/anpta/.home` (created automatically)
+- Uses the unified runtime images (e.g., `vhaasteren/anpta:cpu`)
+- Automatic UID/GID matching via entrypoint script using `HOST_UID`/`HOST_GID` environment variables for correct file permissions
+- Writable `$HOME` directory at `/workspaces/${localWorkspaceFolderBasename}/.home` (created automatically)
 - Pre-configured with Python, Jupyter, and development extensions
 - Python virtual environment auto-activated
-- `ipykernel` installed with `--sys-prefix` (kernel spec in venv, independent of `$HOME`)
+- `ipykernel` installed with `--sys-prefix` in the shared parent layer (kernel spec in venv, independent of `$HOME`)
 
 **Base Image Selection:**
-- Default: `vhaasteren/anpta:cpu-devcontainer` (CPU variant)
+- Default: `vhaasteren/anpta:cpu` (CPU variant)
 - For GPU: Change `image` field to:
-  - `vhaasteren/anpta:gpu-cuda124-devcontainer` (CUDA 12.4)
-  - `vhaasteren/anpta:gpu-cuda128-devcontainer` (CUDA 12.8)
-  - `vhaasteren/anpta:gpu-cuda13-devcontainer` (CUDA 13)
+  - `vhaasteren/anpta:gpu-cuda124` (CUDA 12.4)
+  - `vhaasteren/anpta:gpu-cuda128` (CUDA 12.8)
+  - `vhaasteren/anpta:gpu-cuda13` (CUDA 13)
 
 **Permissions:**
-- Files created in `/workspaces/anpta` will be owned by your host user
-- The devcontainer uses `--user` flag to run processes as your host UID/GID
+- Files created in the workspace will be owned by your host user
+- The devcontainer uses the entrypoint script to remap UID/GID at runtime (no `--user` flag needed)
 - No manual permission fixes needed
 - The venv is **not chowned** at build time (faster builds, instant startup)
-- The kernel is installed with `--sys-prefix`, so it works regardless of `$HOME`
+- The kernel is installed with `--sys-prefix` in the shared parent layer, so it works regardless of `$HOME`
 - We never chown `/opt/software` (read-only system libraries)
 
 **Notes:**
 - Container startup is instant (no venv chowning at runtime)
-- Python packages can be installed into the workspace using `pip install --user` (goes to `/workspaces/anpta/.pyuser`)
-- Python bytecode cache is redirected to `/workspaces/anpta/.pycache`
+- Python packages can be installed into the workspace using `pip install` (goes to workspace `.pyuser` directory via `.pth` shim)
+- Python bytecode cache is redirected to workspace `.pycache` directory
+- The same image works for both `docker run` and devcontainers
 
 For detailed setup instructions, see the repository's `README.md` and `devcontainer/` directory.
 

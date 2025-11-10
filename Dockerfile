@@ -96,13 +96,16 @@ RUN bash /usr/local/bin/update_clock_corrections.sh
 # ---------- CPU target ----------
 FROM base AS cpu-singularity
 COPY requirements/cpu.txt /tmp/req-cpu.txt
-RUN ${VIRTUAL_ENV}/bin/pip install -r /tmp/req-cpu.txt
+RUN ${VIRTUAL_ENV}/bin/pip install -r /tmp/req-cpu.txt && \
+    ${VIRTUAL_ENV}/bin/pip install --no-cache-dir ipykernel && \
+    ${VIRTUAL_ENV}/bin/python -m ipykernel install --sys-prefix \
+        --name pta --display-name "Python (pta)"
 WORKDIR ${SOFTWARE_DIR}
 CMD ["bash", "-lc", "source /opt/venvs/pta/bin/activate && exec bash"]
 
 
-# ---------- GPU deps target (CUDA 12.4) ----------
-FROM base AS gpu-deps-cuda124
+# ---------- GPU target (CUDA 12.4) ----------
+FROM base AS gpu-cuda124-singularity
 ENV CUDA_HOME=/usr/local/cuda \
     PATH=/usr/local/cuda/bin:${PATH} \
     LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH}
@@ -110,14 +113,15 @@ ENV CUDA_HOME=/usr/local/cuda \
 # GPU Python stack (CUDA 12.4)
 COPY requirements/gpu_cuda124.txt /tmp/req-gpu-cuda124.txt
 RUN ${VIRTUAL_ENV}/bin/pip install -r /tmp/req-gpu-cuda124.txt
-
-FROM gpu-deps-cuda124 AS gpu-cuda124-singularity
+RUN ${VIRTUAL_ENV}/bin/pip install --no-cache-dir ipykernel && \
+    ${VIRTUAL_ENV}/bin/python -m ipykernel install --sys-prefix \
+        --name pta --display-name "Python (pta)"
 WORKDIR ${SOFTWARE_DIR}
 CMD ["bash", "-lc", "source /opt/venvs/pta/bin/activate && exec bash"]
 
 
-# ---------- GPU deps target (CUDA 12.8) ----------
-FROM base AS gpu-deps-cuda128
+# ---------- GPU target (CUDA 12.8) ----------
+FROM base AS gpu-cuda128-singularity
 ENV CUDA_HOME=/usr/local/cuda \
     PATH=/usr/local/cuda/bin:${PATH} \
     LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH}
@@ -125,14 +129,15 @@ ENV CUDA_HOME=/usr/local/cuda \
 # GPU Python stack (CUDA 12.8)
 COPY requirements/gpu_cuda128.txt /tmp/req-gpu-cuda128.txt
 RUN ${VIRTUAL_ENV}/bin/pip install -r /tmp/req-gpu-cuda128.txt
-
-FROM gpu-deps-cuda128 AS gpu-cuda128-singularity
+RUN ${VIRTUAL_ENV}/bin/pip install --no-cache-dir ipykernel && \
+    ${VIRTUAL_ENV}/bin/python -m ipykernel install --sys-prefix \
+        --name pta --display-name "Python (pta)"
 WORKDIR ${SOFTWARE_DIR}
 CMD ["bash", "-lc", "source /opt/venvs/pta/bin/activate && exec bash"]
 
 
-# ---------- GPU deps target (CUDA 13) ----------
-FROM base AS gpu-deps-cuda13
+# ---------- GPU target (CUDA 13) ----------
+FROM base AS gpu-cuda13-singularity
 ENV CUDA_HOME=/usr/local/cuda \
     PATH=/usr/local/cuda/bin:${PATH} \
     LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH}
@@ -140,133 +145,97 @@ ENV CUDA_HOME=/usr/local/cuda \
 # GPU Python stack (CUDA 13)
 COPY requirements/gpu_cuda13.txt /tmp/req-gpu-cuda13.txt
 RUN ${VIRTUAL_ENV}/bin/pip install -r /tmp/req-gpu-cuda13.txt
-
-FROM gpu-deps-cuda13 AS gpu-cuda13-singularity
+RUN ${VIRTUAL_ENV}/bin/pip install --no-cache-dir ipykernel && \
+    ${VIRTUAL_ENV}/bin/python -m ipykernel install --sys-prefix \
+        --name pta --display-name "Python (pta)"
 WORKDIR ${SOFTWARE_DIR}
 CMD ["bash", "-lc", "source /opt/venvs/pta/bin/activate && exec bash"]
 
 
-# ---------- CPU docker (devcontainer, non-root) ----------
-FROM cpu-singularity AS cpu-devcontainer
-RUN useradd -m -s /bin/bash anpta \
- && apt-get update && apt-get install -y --no-install-recommends sudo ca-certificates curl wget gnupg lsb-release \
- && echo 'test -f "/opt/venvs/pta/bin/activate" && . "/opt/venvs/pta/bin/activate"' >> /home/anpta/.bashrc \
- && chown -R anpta:anpta /home/anpta \
- && rm -rf /var/lib/apt/lists/*
-# Install ipykernel as root (build-time, needs write access to venv)
-RUN /opt/venvs/pta/bin/pip install --no-cache-dir ipykernel \
- && /opt/venvs/pta/bin/python -m ipykernel install --sys-prefix --name pta --display-name "Python (pta)"
-USER anpta
-WORKDIR /home/anpta
-ENV VIRTUAL_ENV="/opt/venvs/pta" \
-    PATH="/opt/venvs/pta/bin:${PATH}"
-
-# ---------- CPU docker (direct usage, UID-mapped) ----------
+# ---------- CPU runtime (unified for devcontainer & docker run) ----------
 FROM cpu-singularity AS cpu
+# Runtime: gosu + tini + sudo
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gosu tini sudo ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+# Create user
 RUN useradd -m -s /bin/bash anpta \
  && echo 'test -f "/opt/venvs/pta/bin/activate" && . "/opt/venvs/pta/bin/activate"' >> /home/anpta/.bashrc \
  && mkdir -p /work
-# tiny, robust init + privilege dropper
-RUN apt-get update \
- && apt-get install -y --no-install-recommends gosu tini \
- && rm -rf /var/lib/apt/lists/*
+# Entrypoint
 COPY scripts/entrypoint-uidmap.sh /usr/local/bin/entrypoint-uidmap.sh
 RUN chmod +x /usr/local/bin/entrypoint-uidmap.sh
-WORKDIR /work
+# No USER anpta → start as root, drop later
+WORKDIR /workspaces
 ENV VIRTUAL_ENV="/opt/venvs/pta" \
-    PATH="/opt/venvs/pta/bin:${PATH}"
-ENTRYPOINT ["tini","--","/usr/local/bin/entrypoint-uidmap.sh"]
+    PATH="/opt/venvs/pta/bin:${PATH}" \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_NO_CACHE_DIR=1
+ENTRYPOINT ["tini", "--", "/usr/local/bin/entrypoint-uidmap.sh"]
 CMD ["bash", "-lc", "source /opt/venvs/pta/bin/activate && exec bash"]
 
-# ---------- GPU docker (devcontainer, non-root, CUDA 12.4) ----------
-FROM gpu-cuda124-singularity AS gpu-cuda124-devcontainer
-RUN useradd -m -s /bin/bash anpta \
- && apt-get update && apt-get install -y --no-install-recommends sudo ca-certificates curl wget gnupg lsb-release \
- && echo 'test -f "/opt/venvs/pta/bin/activate" && . "/opt/venvs/pta/bin/activate"' >> /home/anpta/.bashrc \
- && chown -R anpta:anpta /home/anpta \
- && rm -rf /var/lib/apt/lists/*
-# Install ipykernel as root (build-time, needs write access to venv)
-RUN /opt/venvs/pta/bin/pip install --no-cache-dir ipykernel \
- && /opt/venvs/pta/bin/python -m ipykernel install --sys-prefix --name pta --display-name "Python (pta)"
-USER anpta
-WORKDIR /home/anpta
-ENV VIRTUAL_ENV="/opt/venvs/pta" \
-    PATH="/opt/venvs/pta/bin:${PATH}"
-
-# ---------- GPU docker (direct usage, UID-mapped, CUDA 12.4) ----------
+# ---------- GPU runtime (unified for devcontainer & docker run, CUDA 12.4) ----------
 FROM gpu-cuda124-singularity AS gpu-cuda124
+# Runtime: gosu + tini + sudo
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gosu tini sudo ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+# Create user
 RUN useradd -m -s /bin/bash anpta \
  && echo 'test -f "/opt/venvs/pta/bin/activate" && . "/opt/venvs/pta/bin/activate"' >> /home/anpta/.bashrc \
  && mkdir -p /work
-RUN apt-get update \
- && apt-get install -y --no-install-recommends gosu tini \
- && rm -rf /var/lib/apt/lists/*
+# Entrypoint
 COPY scripts/entrypoint-uidmap.sh /usr/local/bin/entrypoint-uidmap.sh
 RUN chmod +x /usr/local/bin/entrypoint-uidmap.sh
-WORKDIR /work
+# No USER anpta → start as root, drop later
+WORKDIR /workspaces
 ENV VIRTUAL_ENV="/opt/venvs/pta" \
-    PATH="/opt/venvs/pta/bin:${PATH}"
-ENTRYPOINT ["tini","--","/usr/local/bin/entrypoint-uidmap.sh"]
+    PATH="/opt/venvs/pta/bin:${PATH}" \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_NO_CACHE_DIR=1
+ENTRYPOINT ["tini", "--", "/usr/local/bin/entrypoint-uidmap.sh"]
 CMD ["bash", "-lc", "source /opt/venvs/pta/bin/activate && exec bash"]
 
-# ---------- GPU docker (devcontainer, non-root, CUDA 12.8) ----------
-FROM gpu-cuda128-singularity AS gpu-cuda128-devcontainer
-RUN useradd -m -s /bin/bash anpta \
- && apt-get update && apt-get install -y --no-install-recommends sudo ca-certificates curl wget gnupg lsb-release \
- && echo 'test -f "/opt/venvs/pta/bin/activate" && . "/opt/venvs/pta/bin/activate"' >> /home/anpta/.bashrc \
- && chown -R anpta:anpta /home/anpta \
- && rm -rf /var/lib/apt/lists/*
-# Install ipykernel as root (build-time, needs write access to venv)
-RUN /opt/venvs/pta/bin/pip install --no-cache-dir ipykernel \
- && /opt/venvs/pta/bin/python -m ipykernel install --sys-prefix --name pta --display-name "Python (pta)"
-USER anpta
-WORKDIR /home/anpta
-ENV VIRTUAL_ENV="/opt/venvs/pta" \
-    PATH="/opt/venvs/pta/bin:${PATH}"
-
-# ---------- GPU docker (direct usage, UID-mapped, CUDA 12.8) ----------
+# ---------- GPU runtime (unified for devcontainer & docker run, CUDA 12.8) ----------
 FROM gpu-cuda128-singularity AS gpu-cuda128
+# Runtime: gosu + tini + sudo
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gosu tini sudo ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+# Create user
 RUN useradd -m -s /bin/bash anpta \
  && echo 'test -f "/opt/venvs/pta/bin/activate" && . "/opt/venvs/pta/bin/activate"' >> /home/anpta/.bashrc \
  && mkdir -p /work
-RUN apt-get update \
- && apt-get install -y --no-install-recommends gosu tini \
- && rm -rf /var/lib/apt/lists/*
+# Entrypoint
 COPY scripts/entrypoint-uidmap.sh /usr/local/bin/entrypoint-uidmap.sh
 RUN chmod +x /usr/local/bin/entrypoint-uidmap.sh
-WORKDIR /work
+# No USER anpta → start as root, drop later
+WORKDIR /workspaces
 ENV VIRTUAL_ENV="/opt/venvs/pta" \
-    PATH="/opt/venvs/pta/bin:${PATH}"
-ENTRYPOINT ["tini","--","/usr/local/bin/entrypoint-uidmap.sh"]
+    PATH="/opt/venvs/pta/bin:${PATH}" \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_NO_CACHE_DIR=1
+ENTRYPOINT ["tini", "--", "/usr/local/bin/entrypoint-uidmap.sh"]
 CMD ["bash", "-lc", "source /opt/venvs/pta/bin/activate && exec bash"]
 
-# ---------- GPU docker (devcontainer, non-root, CUDA 13) ----------
-FROM gpu-cuda13-singularity AS gpu-cuda13-devcontainer
-RUN useradd -m -s /bin/bash anpta \
- && apt-get update && apt-get install -y --no-install-recommends sudo ca-certificates curl wget gnupg lsb-release \
- && echo 'test -f "/opt/venvs/pta/bin/activate" && . "/opt/venvs/pta/bin/activate"' >> /home/anpta/.bashrc \
- && chown -R anpta:anpta /home/anpta \
- && rm -rf /var/lib/apt/lists/*
-# Install ipykernel as root (build-time, needs write access to venv)
-RUN /opt/venvs/pta/bin/pip install --no-cache-dir ipykernel \
- && /opt/venvs/pta/bin/python -m ipykernel install --sys-prefix --name pta --display-name "Python (pta)"
-USER anpta
-WORKDIR /home/anpta
-ENV VIRTUAL_ENV="/opt/venvs/pta" \
-    PATH="/opt/venvs/pta/bin:${PATH}"
-
-# ---------- GPU docker (direct usage, UID-mapped, CUDA 13) ----------
+# ---------- GPU runtime (unified for devcontainer & docker run, CUDA 13) ----------
 FROM gpu-cuda13-singularity AS gpu-cuda13
+# Runtime: gosu + tini + sudo
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gosu tini sudo ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+# Create user
 RUN useradd -m -s /bin/bash anpta \
  && echo 'test -f "/opt/venvs/pta/bin/activate" && . "/opt/venvs/pta/bin/activate"' >> /home/anpta/.bashrc \
  && mkdir -p /work
-RUN apt-get update \
- && apt-get install -y --no-install-recommends gosu tini \
- && rm -rf /var/lib/apt/lists/*
+# Entrypoint
 COPY scripts/entrypoint-uidmap.sh /usr/local/bin/entrypoint-uidmap.sh
 RUN chmod +x /usr/local/bin/entrypoint-uidmap.sh
-WORKDIR /work
+# No USER anpta → start as root, drop later
+WORKDIR /workspaces
 ENV VIRTUAL_ENV="/opt/venvs/pta" \
-    PATH="/opt/venvs/pta/bin:${PATH}"
-ENTRYPOINT ["tini","--","/usr/local/bin/entrypoint-uidmap.sh"]
+    PATH="/opt/venvs/pta/bin:${PATH}" \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_NO_CACHE_DIR=1
+ENTRYPOINT ["tini", "--", "/usr/local/bin/entrypoint-uidmap.sh"]
 CMD ["bash", "-lc", "source /opt/venvs/pta/bin/activate && exec bash"]

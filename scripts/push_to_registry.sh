@@ -218,24 +218,13 @@ main() {
         "${CPU_CACHE_REF}"
     echo ""
     
-    info "=== Building CPU (Docker) variant ==="
+    info "=== Building CPU (unified for Docker & Devcontainer) variant ==="
     build_and_push \
         "cpu" \
         "linux/amd64,linux/arm64" \
         "ubuntu:24.04" \
         "cpu-ubuntu24.04" \
         "cpu" \
-        "${CPU_CACHE_REF}" \
-        "cpu-singularity"
-    echo ""
-    
-    info "=== Building CPU (Devcontainer) variant ==="
-    build_and_push \
-        "cpu-devcontainer" \
-        "linux/amd64,linux/arm64" \
-        "ubuntu:24.04" \
-        "cpu-devcontainer-ubuntu24.04" \
-        "cpu-devcontainer" \
         "${CPU_CACHE_REF}" \
         "cpu-singularity"
     echo ""
@@ -250,24 +239,13 @@ main() {
         "${GPU_CU124_CACHE_REF}"
     echo ""
     
-    info "=== Building GPU CUDA 12.4 (Docker) variant ==="
+    info "=== Building GPU CUDA 12.4 (unified for Docker & Devcontainer) variant ==="
     build_and_push \
         "gpu-cuda124" \
         "linux/amd64" \
         "nvidia/cuda:12.4.0-devel-ubuntu22.04" \
         "gpu-cuda124-ubuntu22.04" \
         "gpu-cuda124" \
-        "${GPU_CU124_CACHE_REF}" \
-        "gpu-cuda124-singularity"
-    echo ""
-    
-    info "=== Building GPU CUDA 12.4 (Devcontainer) variant ==="
-    build_and_push \
-        "gpu-cuda124-devcontainer" \
-        "linux/amd64" \
-        "nvidia/cuda:12.4.0-devel-ubuntu22.04" \
-        "gpu-cuda124-devcontainer-ubuntu22.04" \
-        "gpu-cuda124-devcontainer" \
         "${GPU_CU124_CACHE_REF}" \
         "gpu-cuda124-singularity"
     echo ""
@@ -282,24 +260,13 @@ main() {
         "${GPU_CU128_CACHE_REF}"
     echo ""
     
-    info "=== Building GPU CUDA 12.8 (Docker) variant ==="
+    info "=== Building GPU CUDA 12.8 (unified for Docker & Devcontainer) variant ==="
     build_and_push \
         "gpu-cuda128" \
         "linux/amd64" \
         "nvidia/cuda:12.8.1-cudnn-devel-ubuntu24.04" \
         "gpu-cuda128-ubuntu24.04" \
         "gpu-cuda128" \
-        "${GPU_CU128_CACHE_REF}" \
-        "gpu-cuda128-singularity"
-    echo ""
-    
-    info "=== Building GPU CUDA 12.8 (Devcontainer) variant ==="
-    build_and_push \
-        "gpu-cuda128-devcontainer" \
-        "linux/amd64" \
-        "nvidia/cuda:12.8.1-cudnn-devel-ubuntu24.04" \
-        "gpu-cuda128-devcontainer-ubuntu24.04" \
-        "gpu-cuda128-devcontainer" \
         "${GPU_CU128_CACHE_REF}" \
         "gpu-cuda128-singularity"
     echo ""
@@ -314,7 +281,7 @@ main() {
         "${GPU_CU13_CACHE_REF}"
     echo ""
     
-    info "=== Building GPU CUDA 13 (Docker) variant ==="
+    info "=== Building GPU CUDA 13 (unified for Docker & Devcontainer) variant ==="
     build_and_push \
         "gpu-cuda13" \
         "linux/amd64" \
@@ -325,33 +292,18 @@ main() {
         "gpu-cuda13-singularity"
     echo ""
     
-    info "=== Building GPU CUDA 13 (Devcontainer) variant ==="
-    build_and_push \
-        "gpu-cuda13-devcontainer" \
-        "linux/amd64" \
-        "nvidia/cuda:13.0.1-cudnn-devel-ubuntu24.04" \
-        "gpu-cuda13-devcontainer-ubuntu24.04" \
-        "gpu-cuda13-devcontainer" \
-        "${GPU_CU13_CACHE_REF}" \
-        "gpu-cuda13-singularity"
-    echo ""
-    
     # Success summary
     info "=== All variants built and pushed successfully! ==="
     info ""
     info "Pushed tags:"
     info "  - ${LOCAL_REPO}:${VERSION}-cpu-singularity-ubuntu24.04 → ${LOCAL_REPO}:cpu-singularity"
     info "  - ${LOCAL_REPO}:${VERSION}-cpu-ubuntu24.04 → ${LOCAL_REPO}:cpu"
-    info "  - ${LOCAL_REPO}:${VERSION}-cpu-devcontainer-ubuntu24.04 → ${LOCAL_REPO}:cpu-devcontainer"
     info "  - ${LOCAL_REPO}:${VERSION}-gpu-cuda124-singularity-ubuntu22.04 → ${LOCAL_REPO}:gpu-cuda124-singularity"
     info "  - ${LOCAL_REPO}:${VERSION}-gpu-cuda124-ubuntu22.04 → ${LOCAL_REPO}:gpu-cuda124"
-    info "  - ${LOCAL_REPO}:${VERSION}-gpu-cuda124-devcontainer-ubuntu22.04 → ${LOCAL_REPO}:gpu-cuda124-devcontainer"
     info "  - ${LOCAL_REPO}:${VERSION}-gpu-cuda128-singularity-ubuntu24.04 → ${LOCAL_REPO}:gpu-cuda128-singularity"
     info "  - ${LOCAL_REPO}:${VERSION}-gpu-cuda128-ubuntu24.04 → ${LOCAL_REPO}:gpu-cuda128"
-    info "  - ${LOCAL_REPO}:${VERSION}-gpu-cuda128-devcontainer-ubuntu24.04 → ${LOCAL_REPO}:gpu-cuda128-devcontainer"
     info "  - ${LOCAL_REPO}:${VERSION}-gpu-cuda13-singularity-ubuntu24.04 → ${LOCAL_REPO}:gpu-cuda13-singularity"
     info "  - ${LOCAL_REPO}:${VERSION}-gpu-cuda13-ubuntu24.04 → ${LOCAL_REPO}:gpu-cuda13"
-    info "  - ${LOCAL_REPO}:${VERSION}-gpu-cuda13-devcontainer-ubuntu24.04 → ${LOCAL_REPO}:gpu-cuda13-devcontainer"
     info ""
     info "View at: ${REGISTRY_URL}"
 }

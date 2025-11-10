@@ -22,19 +22,13 @@ This repo uses a single Dockerfile with three types of build targets for differe
 - `gpu-cuda128-singularity` (CUDA 12.8, root user)
 - `gpu-cuda13-singularity` (CUDA 13, root user)
 
-**Devcontainer targets** (for VS Code Dev Containers):
-- `cpu-devcontainer` (includes VS Code tools, uses `--user` flag for host UID/GID)
-- `gpu-cuda124-devcontainer` (CUDA 12.4 + VS Code tools)
-- `gpu-cuda128-devcontainer` (CUDA 12.8 + VS Code tools)
-- `gpu-cuda13-devcontainer` (CUDA 13 + VS Code tools)
+**Unified runtime targets** (for both Docker runs and VS Code Dev Containers):
+- `cpu` (unified image, works for both `docker run` and devcontainers)
+- `gpu-cuda124` (CUDA 12.4, unified)
+- `gpu-cuda128` (CUDA 12.8, unified)
+- `gpu-cuda13` (CUDA 13, unified)
 
-**Direct Docker usage targets** (for standalone Docker runs with UID/GID mapping):
-- `cpu` (uses entrypoint script for dynamic UID/GID remapping)
-- `gpu-cuda124` (CUDA 12.4 + entrypoint script)
-- `gpu-cuda128` (CUDA 12.8 + entrypoint script)
-- `gpu-cuda13` (CUDA 13 + entrypoint script)
-
-All variants share the same software stack. GPU variants additionally include CUDA/cuDNN, torch, cupy, pycuda, and JAX CUDA. The direct usage targets use an entrypoint script (`entrypoint-uidmap.sh`) that automatically remaps the container's `anpta` user to match your host UID/GID, ensuring correct file permissions on bind-mounted volumes.
+All variants share the same software stack. GPU variants additionally include CUDA/cuDNN, torch, cupy, pycuda, and JAX CUDA. The unified runtime targets use an entrypoint script (`entrypoint-uidmap.sh`) that automatically remaps the container's `anpta` user to match your host UID/GID, ensuring correct file permissions on bind-mounted volumes. The same image works for both direct Docker usage and VS Code Dev Containers.
 
 **Note:** Only the GPU variants are typically converted to Singularity `.sif` files, as HPC clusters are typically x86_64 and Singularity/Apptainer doesn't run on ARM64 architecture.
 
@@ -63,14 +57,14 @@ docker buildx build \
   .
 </code></pre>
 
-**CPU (multi-arch, devcontainer):**
+**CPU (multi-arch, unified for Docker & Devcontainer):**
 
 <pre><code>
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
-  --target cpu-devcontainer \
-  -t anpta:cpu-devcontainer \
-  --build-arg BASE_IMAGE=ubuntu:22.04 \
+  --target cpu \
+  -t anpta:cpu \
+  --build-arg BASE_IMAGE=ubuntu:24.04 \
   .
 </code></pre>
 
@@ -96,18 +90,18 @@ docker buildx build \
   .
 </code></pre>
 
-**GPU (amd64, devcontainer, CUDA 12.4):**
+**GPU (amd64, unified for Docker & Devcontainer, CUDA 12.4):**
 
 <pre><code>
 docker buildx build \
   --platform linux/amd64 \
-  --target gpu-cuda124-devcontainer \
-  -t anpta:gpu-cuda124-devcontainer \
-  --build-arg BASE_IMAGE=nvidia/cuda:12.4.1-devel-ubuntu22.04 \
+  --target gpu-cuda124 \
+  -t anpta:gpu-cuda124 \
+  --build-arg BASE_IMAGE=nvidia/cuda:12.4.0-devel-ubuntu22.04 \
   .
 </code></pre>
 
-Similar patterns apply for CUDA 12.8 (`gpu-cuda128-*`) and CUDA 13 (`gpu-cuda13-*`) targets.
+Similar patterns apply for CUDA 12.8 (`gpu-cuda128`) and CUDA 13 (`gpu-cuda13`) targets.
 **Notes for buildx:**
 
 - The GPU targets are linux/amd64 only. On Apple Silicon, ensure your buildx builder supports cross-building to amd64 (QEMU). Check with:
@@ -149,9 +143,9 @@ Versioning and tags
 -------------------
 
 - Suggested immutable tags (examples):
-  - `v0.1.0-cpu-ubuntu22.04`, `v0.1.0-cpu-singularity-ubuntu22.04`, `v0.1.0-cpu-devcontainer-ubuntu22.04`
-  - `v0.1.0-gpu-cuda124-ubuntu22.04`, `v0.1.0-gpu-cuda124-singularity-ubuntu22.04`, `v0.1.0-gpu-cuda124-devcontainer-ubuntu22.04`
-- Stable aliases (move on each release): `cpu`, `cpu-singularity`, `cpu-devcontainer`, `gpu-cuda124`, `gpu-cuda124-singularity`, `gpu-cuda124-devcontainer`, etc.
+  - `v0.1.0-cpu-ubuntu24.04`, `v0.1.0-cpu-singularity-ubuntu24.04`
+  - `v0.1.0-gpu-cuda124-ubuntu22.04`, `v0.1.0-gpu-cuda124-singularity-ubuntu22.04`
+- Stable aliases (move on each release): `cpu`, `cpu-singularity`, `gpu-cuda124`, `gpu-cuda124-singularity`, etc.
 - CPU images should be published as multi-arch (linux/amd64, linux/arm64); GPU as linux/amd64 only.
 
 
@@ -331,19 +325,19 @@ This repository includes a ready-to-use Dev Container configuration for interact
 
 **Setup:**
 1. Copy `devcontainer/devcontainer.json` to `.devcontainer/devcontainer.json` in your project root.
-2. The devcontainer uses the `*-devcontainer` target images (e.g., `vhaasteren/anpta:cpu-devcontainer`) which include VS Code tools and proper user configuration.
+2. The devcontainer uses the unified runtime images (e.g., `vhaasteren/anpta:cpu`), which work for both devcontainers and direct Docker usage.
 
 **Base image selection:**
-- By default, uses `vhaasteren/anpta:cpu-devcontainer` (CPU variant).
+- By default, uses `vhaasteren/anpta:cpu` (CPU variant).
 - To use a GPU variant, change the `image` field in `devcontainer.json`:
-  - `"image": "vhaasteren/anpta:gpu-cuda124-devcontainer"` (CUDA 12.4)
-  - `"image": "vhaasteren/anpta:gpu-cuda128-devcontainer"` (CUDA 12.8)
-  - `"image": "vhaasteren/anpta:gpu-cuda13-devcontainer"` (CUDA 13)
+  - `"image": "vhaasteren/anpta:gpu-cuda124"` (CUDA 12.4)
+  - `"image": "vhaasteren/anpta:gpu-cuda128"` (CUDA 12.8)
+  - `"image": "vhaasteren/anpta:gpu-cuda13"` (CUDA 13)
 
 **Permissions and user mapping:**
-- The devcontainer uses `--user ${localEnv:UID}:${localEnv:GID}` to run processes as your host UID/GID.
-- This ensures bind-mounted files in `/workspaces/anpta` are owned by your host user.
-- The `$HOME` environment variable is set to `/workspaces/anpta/.home` (created automatically) to provide a writable home directory.
+- The devcontainer uses environment variables (`HOST_UID`, `HOST_GID`) to automatically remap the container user to match your host UID/GID via the entrypoint script.
+- This ensures bind-mounted files are owned by your host user.
+- The `$HOME` environment variable is set to `/workspaces/${localWorkspaceFolderBasename}/.home` (created automatically) to provide a writable home directory.
 - On macOS/Linux, ensure `UID` and `GID` are exported in your shell (VS Code will read them automatically):
   ```bash
   export UID=$(id -u)
@@ -365,5 +359,6 @@ This repository includes a ready-to-use Dev Container configuration for interact
 - No extra container/remote env wiring is required; the venv is on PATH and auto‑activated.
 - Files created in the workspace will be owned by your host user, ensuring seamless file permissions.
 - The venv is **not chowned** at build time (faster builds, instant startup).
-- The kernel is installed with `--sys-prefix`, so it works regardless of `$HOME`.
+- The kernel is installed with `--sys-prefix` in the shared parent layer, so it works regardless of `$HOME`.
 - We never chown `/opt/software` (read-only system libraries).
+- The same image works for both `docker run` and devcontainers.
