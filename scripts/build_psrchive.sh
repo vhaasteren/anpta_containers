@@ -7,9 +7,7 @@ set -euo pipefail
 # Requires: HEALPix (optional), CALCEPH, TEMPO2, PGPLOT env, numpy present in venv
 
 cd "${SOFTWARE_DIR}"
-# Original: git clone --depth=1 git://git.code.sf.net/p/psrchive/code psrchive
-# Temporary: Using vhaasteren's GitHub fork with healpix branch that includes the epsic submodule fix
-git clone --depth=1 -b healpix https://github.com/vhaasteren/psrchive.git psrchive
+git clone --depth=1 git://git.code.sf.net/p/psrchive/code psrchive
 cd psrchive
 ./bootstrap
 
