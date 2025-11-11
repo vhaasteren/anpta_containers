@@ -8,7 +8,7 @@ export CALCEPH="${CALCEPH_DIR}"
 
 cd "${SOFTWARE_DIR}"
 wget -q https://www.imcce.fr/content/medias/recherche/equipes/asd/calceph/calceph-3.5.3.tar.gz
-tar -xzf calceph-3.5.3.tar.gz
+tar --no-same-owner -xzf calceph-3.5.3.tar.gz
 rm -f calceph-3.5.3.tar.gz
 mv "${SOFTWARE_DIR}/calceph-3.5.3" "${CALCEPH_DIR}"
 cd "${CALCEPH_DIR}"
