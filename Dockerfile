@@ -10,7 +10,7 @@ RUN apt-get update && xargs -a /tmp/apt-common.txt apt-get install -y --no-insta
     rm -rf /var/lib/apt/lists/*
 
 # ---------- Python 3.11 (if available) ----------
-# Try to install python3.11 for Ubuntu 22.04 (will fail gracefully on Ubuntu 24.04 where it doesn't exist)
+# Try to install python3.11 for Ubuntu 22.04 (will fail gracefully on Ubuntu 24.04 where we only have python 3.12)
 RUN apt-get update && \
     (apt-get install -y --no-install-recommends python3.11 python3.11-venv python3.11-dev 2>/dev/null || true) && \
     rm -rf /var/lib/apt/lists/*

@@ -3,12 +3,14 @@
 # Build and push all anpta container variants to registry (local or Docker Hub)
 #
 # Usage:
-#   ./scripts/push_to_registry.sh [REGISTRY]
+#   ./scripts/push_to_registry.sh [REGISTRY] [--no-cache]
 #
 # Examples:
 #   ./scripts/push_to_registry.sh                          # Local registry (default: vhaasteren.com)
 #   ./scripts/push_to_registry.sh dockerhub                # Docker Hub
+#   ./scripts/push_to_registry.sh dockerhub --no-cache      # Docker Hub, no cache
 #   ./scripts/push_to_registry.sh vhaasteren.com            # Local registry with custom domain
+#   ./scripts/push_to_registry.sh vhaasteren.com --no-cache # Local registry, no cache
 #
 # Version is ALWAYS read from VERSION file in repo root (must exist).
 
@@ -28,7 +30,17 @@ if [ -z "${VERSION}" ]; then
     error "VERSION file is empty"
     exit 1
 fi
+
+# Parse arguments
 REGISTRY_ARG="${1:-vhaasteren.com}"
+NO_CACHE=false
+if [ "${1:-}" = "--no-cache" ]; then
+    NO_CACHE=true
+    REGISTRY_ARG="${2:-vhaasteren.com}"
+elif [ "${2:-}" = "--no-cache" ]; then
+    NO_CACHE=true
+fi
+
 DOCKERHUB_USER="vhaasteren"
 
 # Registry configuration
@@ -158,18 +170,25 @@ build_and_push() {
     info "Tags: ${full_tag} (versioned), ${moving_ref} (moving)"
 
     # cache-from: shared family cache, prior target alias, optional extra
-    local cache_from_flags=(
-        "--cache-from=type=registry,ref=${family_cache_ref}"
-        "--cache-from=type=registry,ref=${moving_ref}"
-    )
-    if [ -n "${extra_cache_from}" ]; then
-        cache_from_flags+=("--cache-from=type=registry,ref=${LOCAL_REPO}:${extra_cache_from}")
-    fi
+    local cache_from_flags=()
+    local cache_to_flags=()
+    
+    if [ "${NO_CACHE}" != "true" ]; then
+        cache_from_flags=(
+            "--cache-from=type=registry,ref=${family_cache_ref}"
+            "--cache-from=type=registry,ref=${moving_ref}"
+        )
+        if [ -n "${extra_cache_from}" ]; then
+            cache_from_flags+=("--cache-from=type=registry,ref=${LOCAL_REPO}:${extra_cache_from}")
+        fi
 
-    # cache-to: export to the shared family cache
-    local cache_to_flags=(
-        "--cache-to=type=registry,ref=${family_cache_ref},mode=max"
-    )
+        # cache-to: export to the shared family cache
+        cache_to_flags=(
+            "--cache-to=type=registry,ref=${family_cache_ref},mode=max"
+        )
+    else
+        info "Cache disabled (--no-cache flag set)"
+    fi
 
     # Build with arrays (no eval), include inline cache metadata
     local args=(
@@ -180,9 +199,18 @@ build_and_push() {
         -t "${full_tag}"
         -t "${moving_ref}"
         --build-arg "BASE_IMAGE=${base_image}"
-        --build-arg "BUILDKIT_INLINE_CACHE=1"
-        "${cache_from_flags[@]}"
-        "${cache_to_flags[@]}"
+    )
+    
+    # Add cache flags only if cache is enabled
+    if [ "${NO_CACHE}" != "true" ]; then
+        args+=(
+            --build-arg "BUILDKIT_INLINE_CACHE=1"
+            "${cache_from_flags[@]}"
+            "${cache_to_flags[@]}"
+        )
+    fi
+    
+    args+=(
         --push
         .
     )
@@ -201,6 +229,11 @@ main() {
     fi
     info "Version: ${VERSION}"
     info "Registry: ${LOCAL_REPO}"
+    if [ "${NO_CACHE}" = "true" ]; then
+        info "Cache: DISABLED (--no-cache flag)"
+    else
+        info "Cache: ENABLED (registry-backed)"
+    fi
     echo ""
     
     check_prerequisites
