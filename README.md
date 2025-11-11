@@ -42,7 +42,7 @@ docker buildx build \
   --platform linux/amd64,linux/arm64 \
   --target cpu \
   -t anpta:cpu \
-  --build-arg BASE_IMAGE=ubuntu:22.04 \
+  --build-arg BASE_IMAGE=ubuntu:24.04 \
   .
 </code></pre>
 
@@ -53,7 +53,7 @@ docker buildx build \
   --platform linux/amd64,linux/arm64 \
   --target cpu-singularity \
   -t anpta:cpu-singularity \
-  --build-arg BASE_IMAGE=ubuntu:22.04 \
+  --build-arg BASE_IMAGE=ubuntu:24.04 \
   .
 </code></pre>
 
@@ -101,7 +101,7 @@ docker buildx build \
   .
 </code></pre>
 
-Similar patterns apply for CUDA 12.8 (`gpu-cuda128`) and CUDA 13 (`gpu-cuda13`) targets.
+Similar patterns apply for CUDA 12.8 (`gpu-cuda128`) and CUDA 13 (`gpu-cuda13`) targets. Those may use the Ubuntu 24.04 variants.
 **Notes for buildx:**
 
 - The GPU targets are linux/amd64 only. On Apple Silicon, ensure your buildx builder supports cross-building to amd64 (QEMU). Check with:
