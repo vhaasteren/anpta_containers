@@ -174,6 +174,7 @@ build_and_push() {
     local cache_to_flags=()
     
     if [ "${NO_CACHE}" != "true" ]; then
+        # Normal mode: use all cache sources (old registry cache + images from this run)
         cache_from_flags=(
             "--cache-from=type=registry,ref=${family_cache_ref}"
             "--cache-from=type=registry,ref=${moving_ref}"
@@ -187,7 +188,17 @@ build_and_push() {
             "--cache-to=type=registry,ref=${family_cache_ref},mode=max"
         )
     else
-        info "Cache disabled (--no-cache flag set)"
+        # --no-cache mode: skip old registry cache, but keep cache from images built in this run
+        # and still export cache for future runs
+        info "Skipping old registry cache (--no-cache flag set), but using cache from images built in this run"
+        if [ -n "${extra_cache_from}" ]; then
+            cache_from_flags=("--cache-from=type=registry,ref=${LOCAL_REPO}:${extra_cache_from}")
+        fi
+
+        # Still export cache for future runs
+        cache_to_flags=(
+            "--cache-to=type=registry,ref=${family_cache_ref},mode=max"
+        )
     fi
 
     # Build with arrays (no eval), include inline cache metadata
@@ -201,13 +212,16 @@ build_and_push() {
         --build-arg "BASE_IMAGE=${base_image}"
     )
     
-    # Add cache flags only if cache is enabled
-    if [ "${NO_CACHE}" != "true" ]; then
-        args+=(
-            --build-arg "BUILDKIT_INLINE_CACHE=1"
-            "${cache_from_flags[@]}"
-            "${cache_to_flags[@]}"
-        )
+    # Always use inline cache (needed for dependent builds to use cache from images in this run)
+    # Add cache flags
+    args+=(
+        --build-arg "BUILDKIT_INLINE_CACHE=1"
+    )
+    if [ ${#cache_from_flags[@]} -gt 0 ]; then
+        args+=("${cache_from_flags[@]}")
+    fi
+    if [ ${#cache_to_flags[@]} -gt 0 ]; then
+        args+=("${cache_to_flags[@]}")
     fi
     
     args+=(
