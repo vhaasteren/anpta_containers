@@ -166,13 +166,13 @@ RUN useradd -m -s /bin/bash anpta \
 COPY scripts/entrypoint-uidmap.sh /usr/local/bin/entrypoint-uidmap.sh
 RUN chmod +x /usr/local/bin/entrypoint-uidmap.sh
 # No USER anpta → start as root, drop later
-WORKDIR /workspaces
+WORKDIR /work
 ENV VIRTUAL_ENV="/opt/venvs/pta" \
     PATH="/opt/venvs/pta/bin:${PATH}" \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_NO_CACHE_DIR=1
 ENTRYPOINT ["tini", "--", "/usr/local/bin/entrypoint-uidmap.sh"]
-CMD ["bash", "-lc", "source /opt/venvs/pta/bin/activate && exec bash"]
+CMD ["sleep", "infinity"]
 
 # ---------- GPU runtime (unified for devcontainer & docker run, CUDA 12.4) ----------
 FROM gpu-cuda124-singularity AS gpu-cuda124
@@ -188,13 +188,13 @@ RUN useradd -m -s /bin/bash anpta \
 COPY scripts/entrypoint-uidmap.sh /usr/local/bin/entrypoint-uidmap.sh
 RUN chmod +x /usr/local/bin/entrypoint-uidmap.sh
 # No USER anpta → start as root, drop later
-WORKDIR /workspaces
+WORKDIR /work
 ENV VIRTUAL_ENV="/opt/venvs/pta" \
     PATH="/opt/venvs/pta/bin:${PATH}" \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_NO_CACHE_DIR=1
 ENTRYPOINT ["tini", "--", "/usr/local/bin/entrypoint-uidmap.sh"]
-CMD ["bash", "-lc", "source /opt/venvs/pta/bin/activate && exec bash"]
+CMD ["sleep", "infinity"]
 
 # ---------- GPU runtime (unified for devcontainer & docker run, CUDA 12.8) ----------
 FROM gpu-cuda128-singularity AS gpu-cuda128
@@ -210,13 +210,13 @@ RUN useradd -m -s /bin/bash anpta \
 COPY scripts/entrypoint-uidmap.sh /usr/local/bin/entrypoint-uidmap.sh
 RUN chmod +x /usr/local/bin/entrypoint-uidmap.sh
 # No USER anpta → start as root, drop later
-WORKDIR /workspaces
+WORKDIR /work
 ENV VIRTUAL_ENV="/opt/venvs/pta" \
     PATH="/opt/venvs/pta/bin:${PATH}" \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_NO_CACHE_DIR=1
 ENTRYPOINT ["tini", "--", "/usr/local/bin/entrypoint-uidmap.sh"]
-CMD ["bash", "-lc", "source /opt/venvs/pta/bin/activate && exec bash"]
+CMD ["sleep", "infinity"]
 
 # ---------- GPU runtime (unified for devcontainer & docker run, CUDA 13) ----------
 FROM gpu-cuda13-singularity AS gpu-cuda13
@@ -232,10 +232,10 @@ RUN useradd -m -s /bin/bash anpta \
 COPY scripts/entrypoint-uidmap.sh /usr/local/bin/entrypoint-uidmap.sh
 RUN chmod +x /usr/local/bin/entrypoint-uidmap.sh
 # No USER anpta → start as root, drop later
-WORKDIR /workspaces
+WORKDIR /work
 ENV VIRTUAL_ENV="/opt/venvs/pta" \
     PATH="/opt/venvs/pta/bin:${PATH}" \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_NO_CACHE_DIR=1
 ENTRYPOINT ["tini", "--", "/usr/local/bin/entrypoint-uidmap.sh"]
-CMD ["bash", "-lc", "source /opt/venvs/pta/bin/activate && exec bash"]
+CMD ["sleep", "infinity"]

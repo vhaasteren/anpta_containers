@@ -33,22 +33,29 @@ if [ "$(id -u)" = "0" ] && [ -n "$HOST_UID" ] && [ -n "$HOST_GID" ]; then
   chown -R "$HOST_UID:$HOST_GID" "$HOME_DIR"
 fi
 
-# === HOME override ===
+# Determine the runtime UID/GID for the target user (after any remap)
+TARGET_UID="$(id -u "$USERNAME")"
+TARGET_GID="$(id -g "$USERNAME")"
+
+# === HOME override (devcontainers set HOME_OVERRIDE) ===
 HOME_OVERRIDE="${HOME_OVERRIDE:-$HOME_DIR}"
 mkdir -p "$HOME_OVERRIDE"
-if [ -n "${HOST_UID:-}" ] && [ -n "${HOST_GID:-}" ]; then
-  chown -R "$HOST_UID:$HOST_GID" "$HOME_OVERRIDE" 2>/dev/null || true
+if [ "$(id -u)" = "0" ]; then
+  chown -R "$TARGET_UID:$TARGET_GID" "$HOME_OVERRIDE" 2>/dev/null || true
 fi
 export HOME="$HOME_OVERRIDE"
 
-# === User-writable pip installs (outside system venv) ===
-export PYTHONUSERBASE="${PYTHONUSERBASE:-$HOME/.pyuser}"
-export PYTHONPYCACHEPREFIX="${PYTHONPYCACHEPREFIX:-$HOME/.pycache}"
-mkdir -p "$PYTHONUSERBASE/bin" "$PYTHONUSERBASE/lib" "$PYTHONPYCACHEPREFIX"
-if [ -n "${HOST_UID:-}" ] && [ -n "${HOST_GID:-}" ]; then
-  chown -R "$HOST_UID:$HOST_GID" "$PYTHONUSERBASE" "$PYTHONPYCACHEPREFIX" 2>/dev/null || true
+# === User-writable pip installs (standard: under $HOME) ===
+export PYTHONUSERBASE="${PYTHONUSERBASE:-$HOME/.local}"
+export PYTHONPYCACHEPREFIX="${PYTHONPYCACHEPREFIX:-$HOME/.cache/pycache}"
+mkdir -p "$PYTHONUSERBASE/bin" "$PYTHONPYCACHEPREFIX"
+if [ "$(id -u)" = "0" ]; then
+  chown -R "$TARGET_UID:$TARGET_GID" "$PYTHONUSERBASE" "$PYTHONPYCACHEPREFIX" 2>/dev/null || true
 fi
-case ":$PATH:" in *":$PYTHONUSERBASE/bin:"*) ;; *) export PATH="$PYTHONUSERBASE/bin:$PATH";; esac
+case ":$PATH:" in
+  *":$PYTHONUSERBASE/bin:"*) ;;
+  *) export PATH="$PYTHONUSERBASE/bin:$PATH" ;;
+esac
 
 # pip config: install to user prefix
 mkdir -p "$HOME/.config/pip"
@@ -57,32 +64,51 @@ cat > "$HOME/.config/pip/pip.conf" <<EOF
 prefix = $PYTHONUSERBASE
 no-warn-script-location = true
 EOF
-chown -R "$HOST_UID:$HOST_GID" "$HOME/.config" 2>/dev/null || true
+if [ "$(id -u)" = "0" ]; then
+  chown -R "$TARGET_UID:$TARGET_GID" "$HOME/.config" 2>/dev/null || true
+fi
 
-# === .pth shim: make user installs visible in venv ===
+# === sitecustomize: make user installs visible in venv ===
 PYVER="$(python - <<'PY'
 import sys
 print(f"{sys.version_info[0]}.{sys.version_info[1]}")
 PY
 )"
 
+# Also expose user site-packages via PYTHONPATH (belt & suspenders)
+USER_SITE="$PYTHONUSERBASE/lib/python${PYVER}/site-packages"
+export PYTHONPATH="$USER_SITE${PYTHONPATH:+:$PYTHONPATH}"
+
 VENV_SITE="$VIRTUAL_ENV/lib/python${PYVER}/site-packages"
 mkdir -p "$VENV_SITE"
-cat > "$VENV_SITE/pta-user-prefix.pth" <<PTH
-import os, sys
-p = os.environ.get("PYTHONUSERBASE")
-if p:
-    sp = os.path.join(p, "lib", f"python{sys.version_info[0]}.{sys.version_info[1]}", "site-packages")
+cat > "$VENV_SITE/sitecustomize.py" <<'PY'
+import os
+import sys
+
+def _add_user_site():
+    # Prefer explicit PYTHONUSERBASE if set; otherwise fall back to $HOME/.local
+    base = os.environ.get("PYTHONUSERBASE")
+    if not base:
+        base = os.path.join(os.path.expanduser("~"), ".local")
+    sp = os.path.join(
+        base,
+        "lib",
+        f"python{sys.version_info[0]}.{sys.version_info[1]}",
+        "site-packages",
+    )
     if os.path.isdir(sp) and sp not in sys.path:
+        # Prepend so user installs override system packages when intended
         sys.path.insert(0, sp)
-PTH
+
+_add_user_site()
+PY
 
 # Optional: allow writes to system venv
-if [ "${VENV_WRITABLE:-0}" = "1" ] && [ -d "$VENV" ]; then
+if [ "${VENV_WRITABLE:-0}" = "1" ] && [ -d "$VENV" ] && [ "$(id -u)" = "0" ]; then
   SP="$VENV/lib/python${PYVER}/site-packages"
   if [ -d "$SP" ]; then
     echo "VENV_WRITABLE=1: enabling writes to system venv"
-    chown -R "$HOST_UID:$HOST_GID" "$SP" 2>/dev/null || true
+    chown -R "$TARGET_UID:$TARGET_GID" "$SP" 2>/dev/null || true
   fi
 fi
 

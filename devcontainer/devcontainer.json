@@ -1,15 +1,20 @@
 {
   "name": "anpta dev",
   "image": "vhaasteren/anpta:cpu",
+  "overrideCommand": false,
   "containerEnv": {
     "HOST_UID": "${localEnv:UID}",
     "HOST_GID": "${localEnv:GID}",
-    "HOME_OVERRIDE": "/workspaces/${localWorkspaceFolderBasename}/.home"
+    "HOME_OVERRIDE": "/workspaces/${localWorkspaceFolderBasename}/.home",
+    "PYTHONUSERBASE": "/workspaces/${localWorkspaceFolderBasename}/.home/.local",
+    "PYTHONPYCACHEPREFIX": "/workspaces/${localWorkspaceFolderBasename}/.home/.cache/pycache"
   },
   "remoteUser": "anpta",
+  "updateRemoteUserUID": false,
   "remoteEnv": {
     "HOME": "${containerEnv:HOME_OVERRIDE}",
-    "SSH_AUTH_SOCK": "/ssh-agent"
+    "SSH_AUTH_SOCK": "/ssh-agent",
+    "PYTHONPATH": "${containerEnv:HOME_OVERRIDE}/.local/lib/python3.12/site-packages:${containerEnv:HOME_OVERRIDE}/.local/lib/python3.11/site-packages:${containerEnv:HOME_OVERRIDE}/.local/lib/python3.10/site-packages"
   },
   "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
   "onCreateCommand": "mkdir -p \"$HOME\" && git config --global --add safe.directory \"$PWD\" || true",

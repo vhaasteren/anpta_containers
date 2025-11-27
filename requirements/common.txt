@@ -14,7 +14,7 @@ natsort==8.4.0
 scikit-sparse==0.4.16
 scikit-learn==1.7.2
 scikit-optimize==0.10.2
-black==25.9.0
+black==25.11.0
 flake8==7.3.0
 pytest==8.4.2
 notebook==7.4.7
