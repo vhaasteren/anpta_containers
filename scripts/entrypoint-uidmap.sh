@@ -75,15 +75,10 @@ print(f"{sys.version_info[0]}.{sys.version_info[1]}")
 PY
 )"
 
-# Also expose user site-packages via PYTHONPATH (belt & suspenders)
-USER_SITE="$PYTHONUSERBASE/lib/python${PYVER}/site-packages"
-export PYTHONPATH="$USER_SITE${PYTHONPATH:+:$PYTHONPATH}"
-
 VENV_SITE="$VIRTUAL_ENV/lib/python${PYVER}/site-packages"
 mkdir -p "$VENV_SITE"
 cat > "$VENV_SITE/sitecustomize.py" <<'PY'
-import os
-import sys
+import os, sys, site
 
 def _add_user_site():
     # Prefer explicit PYTHONUSERBASE if set; otherwise fall back to $HOME/.local
@@ -96,11 +91,31 @@ def _add_user_site():
         f"python{sys.version_info[0]}.{sys.version_info[1]}",
         "site-packages",
     )
-    if os.path.isdir(sp) and sp not in sys.path:
-        # Prepend so user installs override system packages when intended
-        sys.path.insert(0, sp)
+    if os.path.isdir(sp):
+        # Use addsitedir so .pth files (editable installs) are processed
+        site.addsitedir(sp)
 
 _add_user_site()
+PY
+
+# Also add user site via usercustomize to cover cases where a system sitecustomize shadows ours
+cat > "$VENV_SITE/usercustomize.py" <<'PY'
+import os, sys, site
+
+def _user_site():
+    base = os.environ.get("PYTHONUSERBASE")
+    if not base:
+        base = os.path.join(os.path.expanduser("~"), ".local")
+    return os.path.join(
+        base,
+        "lib",
+        f"python{sys.version_info[0]}.{sys.version_info[1]}",
+        "site-packages",
+    )
+
+sp = _user_site()
+if os.path.isdir(sp):
+    site.addsitedir(sp)
 PY
 
 # Optional: allow writes to system venv

@@ -39,6 +39,7 @@ COPY scripts/build_calceph.sh /usr/local/bin/
 COPY scripts/build_psrcat.sh /usr/local/bin/
 COPY scripts/build_tempo2.sh /usr/local/bin/
 COPY scripts/update_clock_corrections.sh /usr/local/bin/
+COPY scripts/setup_sitecustomize.sh /usr/local/bin/
 COPY scripts/build_psrchive.sh /usr/local/bin/
 
 # ---------- HEALPix ----------
@@ -92,6 +93,9 @@ RUN ${VIRTUAL_ENV}/bin/pip install -r /tmp/req-pulsar.txt
 
 # ---------- Clock corrections ----------
 RUN bash /usr/local/bin/update_clock_corrections.sh
+
+# ---------- System-level sitecustomize: ensures user site-packages are always visible ----------
+RUN bash /usr/local/bin/setup_sitecustomize.sh
 
 # ---------- CPU target ----------
 FROM base AS cpu-singularity

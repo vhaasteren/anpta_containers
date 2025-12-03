@@ -13,8 +13,7 @@
   "updateRemoteUserUID": false,
   "remoteEnv": {
     "HOME": "${containerEnv:HOME_OVERRIDE}",
-    "SSH_AUTH_SOCK": "/ssh-agent",
-    "PYTHONPATH": "${containerEnv:HOME_OVERRIDE}/.local/lib/python3.12/site-packages:${containerEnv:HOME_OVERRIDE}/.local/lib/python3.11/site-packages:${containerEnv:HOME_OVERRIDE}/.local/lib/python3.10/site-packages"
+    "SSH_AUTH_SOCK": "/ssh-agent"
   },
   "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
   "onCreateCommand": "mkdir -p \"$HOME\" && git config --global --add safe.directory \"$PWD\" || true",
