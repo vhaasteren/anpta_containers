@@ -13,6 +13,7 @@
   "updateRemoteUserUID": false,
   "remoteEnv": {
     "HOME": "${containerEnv:HOME_OVERRIDE}",
+    "PATH": "${containerEnv:PYTHONUSERBASE}/bin:${containerEnv:PATH}",
     "SSH_AUTH_SOCK": "/ssh-agent"
   },
   "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
