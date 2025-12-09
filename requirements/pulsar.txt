@@ -16,3 +16,4 @@ astroquery==0.4.11
 git+https://github.com/PolyChord/PolyChordLite@master
 git+https://github.com/bencebecsy/QuickCW.git@main
 git+https://github.com/vhaasteren/enterprise_outliers.git@main
+git+https://github.com/vhaasteren/metapulsar.git@pulsenumbers
