@@ -5,7 +5,7 @@ set -euo pipefail
 : "${CALCEPH:?}"
 
 cd "${SOFTWARE_DIR}"
-git clone --depth=1 https://bitbucket.org/psrsoft/tempo2.git
+git clone --depth=1 --branch fix-addsat-write https://bitbucket.org/vhaasteren/tempo2.git
 cd tempo2
 sync && perl -pi -e 's/chmod \+x/#chmod +x/' bootstrap
 ./bootstrap
