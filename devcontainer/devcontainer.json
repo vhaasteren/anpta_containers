@@ -13,15 +13,10 @@
   "updateRemoteUserUID": false,
   "remoteEnv": {
     "HOME": "${containerEnv:HOME_OVERRIDE}",
-    "PATH": "${containerEnv:PYTHONUSERBASE}/bin:${containerEnv:PATH}",
-    "SSH_AUTH_SOCK": "/ssh-agent",
-    "DISPLAY": ":0"
+    "PATH": "${containerEnv:PYTHONUSERBASE}/bin:${containerEnv:PATH}"
   },
   "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
   "onCreateCommand": "mkdir -p \"$HOME\" && git config --global --add safe.directory \"$PWD\" || true",
-  "mounts": [
-    "source=${env:SSH_AUTH_SOCK},target=/ssh-agent,type=bind"
-  ],
   "customizations": {
     "vscode": {
       "extensions": [
