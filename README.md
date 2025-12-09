@@ -334,6 +334,42 @@ This repository includes a ready-to-use Dev Container configuration for interact
   - `"image": "vhaasteren/anpta:gpu-cuda128"` (CUDA 12.8)
   - `"image": "vhaasteren/anpta:gpu-cuda13"` (CUDA 13)
 
+**Local overrides (per-user, optional):**
+- Keep the shared `devcontainer.json` universal. Users can add `.devcontainer/devcontainer.local.json` in their project to enable extras like SSH agent forwarding or X11 display.
+- Do not commit `devcontainer.local.json` to version control.
+
+Examples:
+
+```json
+// .devcontainer/devcontainer.local.json
+{
+  // SSH agent forwarding (only if you have an agent running)
+  "mounts": [
+    "source=${localEnv:SSH_AUTH_SOCK},target=/ssh-agent,type=bind"
+  ],
+  "remoteEnv": {
+    "SSH_AUTH_SOCK": "/ssh-agent"
+  }
+}
+```
+
+```json
+// .devcontainer/devcontainer.local.json
+{
+  // X11 on Linux hosts
+  "remoteEnv": {
+    "DISPLAY": "${localEnv:DISPLAY}"
+  },
+  "mounts": [
+    "source=/tmp/.X11-unix,target=/tmp/.X11-unix,type=bind"
+  ]
+}
+```
+
+Notes:
+- On macOS with XQuartz, users typically set `DISPLAY=host.docker.internal:0` and run `xhost + 127.0.0.1` (or a safer rule) locally. Add that `DISPLAY` in the local override if needed.
+- If you don’t need SSH/X11, omit these overrides; the base config works out of the box.
+
 **Permissions and user mapping:**
 - The devcontainer uses environment variables (`HOST_UID`, `HOST_GID`) to automatically remap the container user to match your host UID/GID via the entrypoint script.
 - This ensures bind-mounted files are owned by your host user.
