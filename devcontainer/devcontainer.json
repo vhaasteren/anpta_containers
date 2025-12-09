@@ -14,7 +14,8 @@
   "remoteEnv": {
     "HOME": "${containerEnv:HOME_OVERRIDE}",
     "PATH": "${containerEnv:PYTHONUSERBASE}/bin:${containerEnv:PATH}",
-    "SSH_AUTH_SOCK": "/ssh-agent"
+    "SSH_AUTH_SOCK": "/ssh-agent",
+    "DISPLAY": ":0"
   },
   "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
   "onCreateCommand": "mkdir -p \"$HOME\" && git config --global --add safe.directory \"$PWD\" || true",
