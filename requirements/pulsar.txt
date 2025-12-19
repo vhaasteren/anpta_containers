@@ -1,6 +1,6 @@
 libstempo==2.5.1
 pint-pulsar==1.1.4
-fastshermanmorrison-pulsar==0.4.7
+fastshermanmorrison-pulsar==0.5.4
 ptmcmcsampler==2.1.4
 git+https://github.com/nanograv/enterprise@dev
 git+https://github.com/nanograv/enterprise_extensions@master
