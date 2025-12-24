@@ -52,20 +52,31 @@ mkdir -p "$PYTHONUSERBASE/bin" "$PYTHONPYCACHEPREFIX"
 if [ "$(id -u)" = "0" ]; then
   chown -R "$TARGET_UID:$TARGET_GID" "$PYTHONUSERBASE" "$PYTHONPYCACHEPREFIX" 2>/dev/null || true
 fi
-case ":$PATH:" in
-  *":$PYTHONUSERBASE/bin:"*) ;;
-  *) export PATH="$PYTHONUSERBASE/bin:$PATH" ;;
-esac
 
-# pip config: install to user prefix
-mkdir -p "$HOME/.config/pip"
-cat > "$HOME/.config/pip/pip.conf" <<EOF
+# Ensure the container venv always wins for tooling (python/jupyter/ipython).
+# This avoids VSCode/Jupyter picking up user-base executables by accident.
+#
+# Normalize PATH: remove any existing occurrences of venv + user bin so we can re-prepend in order.
+PATH=":${PATH}:"
+PATH="${PATH//:${VENV}/bin:/:}"
+PATH="${PATH//:${PYTHONUSERBASE}/bin:/:}"
+PATH="${PATH#:}"
+PATH="${PATH%:}"
+export PATH="${VENV}/bin:${PYTHONUSERBASE}/bin:${PATH}"
+
+# pip config:
+# - Default: do NOT force user-prefix installs; pip in the venv should install into the venv (DoD).
+# - Optional: set PIP_USE_USERBASE=1 to force user-prefix installs under $PYTHONUSERBASE.
+if [ "${PIP_USE_USERBASE:-0}" = "1" ]; then
+  mkdir -p "$HOME/.config/pip"
+  cat > "$HOME/.config/pip/pip.conf" <<EOF
 [global]
 prefix = $PYTHONUSERBASE
 no-warn-script-location = true
 EOF
-if [ "$(id -u)" = "0" ]; then
-  chown -R "$TARGET_UID:$TARGET_GID" "$HOME/.config" 2>/dev/null || true
+  if [ "$(id -u)" = "0" ]; then
+    chown -R "$TARGET_UID:$TARGET_GID" "$HOME/.config" 2>/dev/null || true
+  fi
 fi
 
 # === sitecustomize: make user installs visible in venv ===

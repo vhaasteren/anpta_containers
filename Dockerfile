@@ -103,7 +103,8 @@ COPY requirements/cpu.txt /tmp/req-cpu.txt
 RUN ${VIRTUAL_ENV}/bin/pip install -r /tmp/req-cpu.txt && \
     ${VIRTUAL_ENV}/bin/pip install --no-cache-dir ipykernel && \
     ${VIRTUAL_ENV}/bin/python -m ipykernel install --sys-prefix \
-        --name pta --display-name "Python (pta)"
+        --name pta --display-name "Python (pta)" && \
+    chmod -R a+rwX ${VIRTUAL_ENV}
 WORKDIR ${SOFTWARE_DIR}
 CMD ["bash", "-lc", "source /opt/venvs/pta/bin/activate && exec bash"]
 
@@ -119,7 +120,8 @@ COPY requirements/gpu_cuda124.txt /tmp/req-gpu-cuda124.txt
 RUN ${VIRTUAL_ENV}/bin/pip install -r /tmp/req-gpu-cuda124.txt
 RUN ${VIRTUAL_ENV}/bin/pip install --no-cache-dir ipykernel && \
     ${VIRTUAL_ENV}/bin/python -m ipykernel install --sys-prefix \
-        --name pta --display-name "Python (pta)"
+        --name pta --display-name "Python (pta)" && \
+    chmod -R a+rwX ${VIRTUAL_ENV}
 WORKDIR ${SOFTWARE_DIR}
 CMD ["bash", "-lc", "source /opt/venvs/pta/bin/activate && exec bash"]
 
@@ -135,7 +137,8 @@ COPY requirements/gpu_cuda128.txt /tmp/req-gpu-cuda128.txt
 RUN ${VIRTUAL_ENV}/bin/pip install -r /tmp/req-gpu-cuda128.txt
 RUN ${VIRTUAL_ENV}/bin/pip install --no-cache-dir ipykernel && \
     ${VIRTUAL_ENV}/bin/python -m ipykernel install --sys-prefix \
-        --name pta --display-name "Python (pta)"
+        --name pta --display-name "Python (pta)" && \
+    chmod -R a+rwX ${VIRTUAL_ENV}
 WORKDIR ${SOFTWARE_DIR}
 CMD ["bash", "-lc", "source /opt/venvs/pta/bin/activate && exec bash"]
 
@@ -151,7 +154,8 @@ COPY requirements/gpu_cuda13.txt /tmp/req-gpu-cuda13.txt
 RUN ${VIRTUAL_ENV}/bin/pip install -r /tmp/req-gpu-cuda13.txt
 RUN ${VIRTUAL_ENV}/bin/pip install --no-cache-dir ipykernel && \
     ${VIRTUAL_ENV}/bin/python -m ipykernel install --sys-prefix \
-        --name pta --display-name "Python (pta)"
+        --name pta --display-name "Python (pta)" && \
+    chmod -R a+rwX ${VIRTUAL_ENV}
 WORKDIR ${SOFTWARE_DIR}
 CMD ["bash", "-lc", "source /opt/venvs/pta/bin/activate && exec bash"]
 

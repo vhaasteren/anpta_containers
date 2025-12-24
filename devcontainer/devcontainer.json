@@ -13,12 +13,27 @@
   "updateRemoteUserUID": false,
   "remoteEnv": {
     "HOME": "${containerEnv:HOME_OVERRIDE}",
-    "PATH": "${containerEnv:PYTHONUSERBASE}/bin:${containerEnv:PATH}"
+    "VIRTUAL_ENV": "/opt/venvs/pta",
+    "PATH": "/opt/venvs/pta/bin:${containerEnv:PYTHONUSERBASE}/bin:${containerEnv:PATH}",
+    "DISPLAY": ":0"
   },
   "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
   "onCreateCommand": "mkdir -p \"$HOME\" && git config --global --add safe.directory \"$PWD\" || true",
   "customizations": {
     "vscode": {
+      "settings": {
+        "python.defaultInterpreterPath": "/opt/venvs/pta/bin/python",
+        "python.terminal.activateEnvironment": false,
+        "jupyter.kernels.filter": [
+          {
+            "type": "pythonEnvironment",
+            "path": "/opt/venvs/pta/bin/python"
+          }
+        ],
+        "jupyter.kernelSpecRootPaths": [
+          "/opt/venvs/pta/share/jupyter/kernels"
+        ]
+      },
       "extensions": [
         "ms-python.python",
         "ms-python.black-formatter",
