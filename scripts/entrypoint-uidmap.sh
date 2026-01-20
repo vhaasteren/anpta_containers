@@ -68,8 +68,8 @@ export PATH="${VENV}/bin:${PYTHONUSERBASE}/bin:${PATH}"
 # - Default: do NOT force user-prefix installs; pip in the venv should install into the venv (DoD).
 # - Optional: set PIP_USE_USERBASE=1 to force user-prefix installs under $PYTHONUSERBASE.
 if [ "${PIP_USE_USERBASE:-0}" = "1" ]; then
-  mkdir -p "$HOME/.config/pip"
-  cat > "$HOME/.config/pip/pip.conf" <<EOF
+mkdir -p "$HOME/.config/pip"
+cat > "$HOME/.config/pip/pip.conf" <<EOF
 [global]
 prefix = $PYTHONUSERBASE
 no-warn-script-location = true
