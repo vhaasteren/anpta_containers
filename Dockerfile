@@ -120,9 +120,11 @@ ENV JULIAUP_DEPOT_PATH=/opt/julia/juliaup \
     PYTHON_JULIACALL_THREADS=auto
 RUN bash /usr/local/bin/build_vela.sh
 COPY requirements/vela.txt /tmp/req-vela.txt
+COPY scripts/patch_pyvela_priors.py /usr/local/bin/
 RUN ${VIRTUAL_ENV}/bin/pip install -r /tmp/req-vela.txt && \
     ${VIRTUAL_ENV}/bin/pip install --no-cache-dir \
         "git+https://github.com/abhisrkckl/Vela.jl@${VELA_TAG}" && \
+    ${VIRTUAL_ENV}/bin/python /usr/local/bin/patch_pyvela_priors.py && \
     ${VIRTUAL_ENV}/bin/python -c 'from pyvela import __version__; print("pyvela", __version__)'
 
 # ---------- Clock corrections ----------

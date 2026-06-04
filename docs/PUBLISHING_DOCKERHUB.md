@@ -77,7 +77,7 @@ docker login
 ./scripts/build_and_publish_multiarch.sh
 ```
 
-On MPI/AEI condor nodes, see `./scripts/build_and_publish_multiarch.sh --help` for rootless
+On ATLAS condor nodes, see `./scripts/build_and_publish_multiarch.sh --help` for rootless
 setup (`--setup-rootless`) and cluster notes. The script verifies Docker Hub login before building.
 
 To test full builds without uploading: `./scripts/build_and_publish_multiarch.sh --no-push`
