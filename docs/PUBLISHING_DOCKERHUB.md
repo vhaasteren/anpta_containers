@@ -70,13 +70,21 @@ export OS_TAG_CUDA13=ubuntu24.04
 
 The easiest way to publish all variants is using the automated scripts:
 
-**Build and push all variants:**
+**Build and push all variants (recommended on Linux cluster / rootless Docker):**
 ```bash
-# Login to Docker Hub first
 docker login
+# Ensure VERSION file in repo root contains the version (e.g., "v0.5.1")
+./scripts/build_and_publish_multiarch.sh
+```
 
-# Ensure VERSION file in repo root contains the version (e.g., "v0.2.0")
-# Then build and push all variants to Docker Hub
+On MPI/AEI condor nodes, see `./scripts/build_and_publish_multiarch.sh --help` for rootless
+setup (`--setup-rootless`) and cluster notes. The script verifies Docker Hub login before building.
+
+To test full builds without uploading: `./scripts/build_and_publish_multiarch.sh --no-push`
+
+**Legacy script (also supports a local registry):**
+```bash
+docker login
 ./scripts/push_to_registry.sh dockerhub
 ```
 

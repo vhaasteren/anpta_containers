@@ -14,11 +14,20 @@
   "remoteEnv": {
     "HOME": "${containerEnv:HOME_OVERRIDE}",
     "VIRTUAL_ENV": "/opt/venvs/pta",
-    "PATH": "/opt/venvs/pta/bin:${containerEnv:PYTHONUSERBASE}/bin:${containerEnv:PATH}",
+    "PATH": "/opt/julia/juliaup/bin:/opt/venvs/pta/bin:${containerEnv:PYTHONUSERBASE}/bin:${containerEnv:PATH}",
+    "JULIA_PROJECT": "/opt/julia/project",
+    "JULIA_DEPOT_PATH": "/opt/julia/depot",
+    "PYTHON_JULIACALL_HANDLE_SIGNALS": "yes",
+    "PYTHON_JULIACALL_EXE": "/opt/julia/juliaup/bin/julia",
+    "PYTHON_JULIACALL_PROJECT": "/opt/julia/project",
+    "JULIA_CONDAPKG_BACKEND": "Null",
+    "PYTHON_JULIAPKG_OFFLINE": "true",
+    "JULIA_NUM_THREADS": "auto",
+    "PYTHON_JULIACALL_THREADS": "auto",
     "DISPLAY": ":0"
   },
   "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
-  "onCreateCommand": "mkdir -p \"$HOME\" && git config --global --add safe.directory \"$PWD\" || true",
+  "onCreateCommand": "mkdir -p \"$HOME\" && git config --global --add safe.directory \"$PWD\" || true && /opt/venvs/pta/bin/python -m ipykernel install --user --name=pta --display-name='Python (pta)'",
   "customizations": {
     "vscode": {
       "settings": {
@@ -28,11 +37,16 @@
           {
             "type": "pythonEnvironment",
             "path": "/opt/venvs/pta/bin/python"
+          },
+          {
+            "type": "jupyterKernel",
+            "value": "Julia (vela)"
           }
         ],
         "jupyter.kernelSpecRootPaths": [
           "/opt/venvs/pta/share/jupyter/kernels"
-        ]
+        ],
+        "julia.executablePath": "/opt/julia/juliaup/bin/julia"
       },
       "extensions": [
         "ms-python.python",
@@ -43,7 +57,8 @@
         "ms-toolsai.jupyter-renderers",
         "ms-python.vscode-pylance",
         "redhat.vscode-yaml",
-        "eamodio.gitlens"
+        "eamodio.gitlens",
+        "julialang.language-julia"
       ]
     }
   }

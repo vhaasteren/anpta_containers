@@ -4,6 +4,15 @@ FROM ${BASE_IMAGE} AS base
 LABEL maintainer="Rutger van Haasteren <rutger@vhaasteren.com>"
 ENV DEBIAN_FRONTEND=noninteractive
 
+# dpkg unpack uses a temp dir; rootless BuildKit often mounts /tmp on a separate tmpfs,
+# which breaks apt with "Invalid cross-device link". Use /var/tmp on the rootfs instead.
+RUN mkdir -p /var/tmp && chmod 1777 /var/tmp \
+ && printf '%s\n' \
+    'DPkg::TmpDir "/var/tmp";' \
+    'Dir::State::tmpdir "/var/tmp";' \
+    > /etc/apt/apt.conf.d/00-tmpdir
+ENV TMPDIR=/var/tmp
+
 # ---------- APT common ----------
 COPY apt/common.txt /tmp/apt-common.txt
 RUN apt-get update && xargs -a /tmp/apt-common.txt apt-get install -y --no-install-recommends && \
@@ -28,7 +37,7 @@ ENV SOFTWARE_DIR=/opt/software \
     VIRTUAL_ENV_BASE=/opt/venvs \
     VIRTUAL_ENV=/opt/venvs/pta \
     PATH="/opt/venvs/pta/bin:${PATH}" \
-    LD_LIBRARY_PATH="/usr/local/lib:${LD_LIBRARY_PATH}" \
+    LD_LIBRARY_PATH="/usr/local/lib:${LD_LIBRARY_PATH:-}" \
     OSTYPE=linux
 RUN mkdir -p ${SOFTWARE_DIR} ${VIRTUAL_ENV_BASE}
 WORKDIR ${SOFTWARE_DIR}
@@ -40,6 +49,7 @@ COPY scripts/build_psrcat.sh /usr/local/bin/
 COPY scripts/build_tempo2.sh /usr/local/bin/
 COPY scripts/update_clock_corrections.sh /usr/local/bin/
 COPY scripts/setup_sitecustomize.sh /usr/local/bin/
+COPY scripts/flatten_chmod_shared.sh /usr/local/bin/
 COPY scripts/build_psrchive.sh /usr/local/bin/
 
 # ---------- HEALPix ----------
@@ -53,7 +63,7 @@ RUN bash /usr/local/bin/build_healpix.sh
 ENV CALCEPH=${SOFTWARE_DIR}/calceph
 ENV PATH="${CALCEPH}/install/bin:${PATH}" \
     LD_LIBRARY_PATH="${CALCEPH}/install/lib:${LD_LIBRARY_PATH}" \
-    C_INCLUDE_PATH="${C_INCLUDE_PATH}:${CALCEPH}/install/include"
+    C_INCLUDE_PATH="${C_INCLUDE_PATH:-}:${CALCEPH}/install/include"
 RUN bash /usr/local/bin/build_calceph.sh
 
 # ---------- psrcat ----------
@@ -64,14 +74,15 @@ RUN bash /usr/local/bin/build_psrcat.sh
 # ---------- tempo2 ----------
 ENV TEMPO2=${SOFTWARE_DIR}/tempo2/T2runtime \
     PATH="${SOFTWARE_DIR}/tempo2/install/bin:${SOFTWARE_DIR}/tempo2/T2runtime/bin:${PATH}" \
-    CPPFLAGS="-I${SOFTWARE_DIR}/tempo2/install/include -I${CALCEPH}/install/include ${CPPFLAGS}" \
-    LDFLAGS="-L${SOFTWARE_DIR}/tempo2/install/lib -L${CALCEPH}/install/lib ${LDFLAGS}" \
-    LD_LIBRARY_PATH="${SOFTWARE_DIR}/tempo2/install/lib:${SOFTWARE_DIR}/tempo2/T2runtime/lib:${CALCEPH}/install/lib:${LD_LIBRARY_PATH}"
+    CPPFLAGS="-I${SOFTWARE_DIR}/tempo2/install/include -I${CALCEPH}/install/include ${CPPFLAGS:-}" \
+    LDFLAGS="-L${SOFTWARE_DIR}/tempo2/install/lib -L${CALCEPH}/install/lib ${LDFLAGS:-}" \
+    LD_LIBRARY_PATH="${SOFTWARE_DIR}/tempo2/install/lib:${SOFTWARE_DIR}/tempo2/T2runtime/lib:${CALCEPH}/install/lib:${LD_LIBRARY_PATH:-}"
 RUN bash /usr/local/bin/build_tempo2.sh
 
 # ---------- Python env ----------
 # Use highest available Python 3.x version (python3.11 on Ubuntu 22.04, python3.12 on Ubuntu 24.04)
-RUN PYTHON3=$(ls -1 /usr/bin/python3.* 2>/dev/null | grep -E 'python3\.[0-9]+$' | sort -V | tail -1 || which python3) && \
+RUN umask 002 && \
+    PYTHON3=$(ls -1 /usr/bin/python3.* 2>/dev/null | grep -E 'python3\.[0-9]+$' | sort -V | tail -1 || which python3) && \
     ${PYTHON3} -m venv ${VIRTUAL_ENV} && \
     ${VIRTUAL_ENV}/bin/pip install --upgrade pip wheel==0.43.0
 
@@ -91,6 +102,29 @@ ENV PATH="${SOFTWARE_DIR}/psrchive/install/bin:${PATH}" \
 COPY requirements/pulsar.txt /tmp/req-pulsar.txt
 RUN ${VIRTUAL_ENV}/bin/pip install -r /tmp/req-pulsar.txt
 
+# ---------- Julia + Vela.jl ----------
+COPY julia/ /opt/julia/project/
+COPY scripts/build_vela.sh /usr/local/bin/
+COPY scripts/install_vela.jl /usr/local/bin/
+ENV JULIAUP_DEPOT_PATH=/opt/julia/juliaup \
+    JULIA_DEPOT_PATH=/opt/julia/depot \
+    JULIA_PROJECT=/opt/julia/project \
+    VELA_TAG=v0.1.5 \
+    PATH="/opt/julia/juliaup/bin:${PATH}" \
+    PYTHON_JULIACALL_HANDLE_SIGNALS=yes \
+    JULIA_CONDAPKG_BACKEND=Null \
+    PYTHON_JULIAPKG_OFFLINE=true \
+    PYTHON_JULIACALL_EXE=/opt/julia/juliaup/bin/julia \
+    PYTHON_JULIACALL_PROJECT=/opt/julia/project \
+    JULIA_NUM_THREADS=auto \
+    PYTHON_JULIACALL_THREADS=auto
+RUN bash /usr/local/bin/build_vela.sh
+COPY requirements/vela.txt /tmp/req-vela.txt
+RUN ${VIRTUAL_ENV}/bin/pip install -r /tmp/req-vela.txt && \
+    ${VIRTUAL_ENV}/bin/pip install --no-cache-dir \
+        "git+https://github.com/abhisrkckl/Vela.jl@${VELA_TAG}" && \
+    ${VIRTUAL_ENV}/bin/python -c 'from pyvela import __version__; print("pyvela", __version__)'
+
 # ---------- Clock corrections ----------
 RUN bash /usr/local/bin/update_clock_corrections.sh
 
@@ -104,7 +138,7 @@ RUN ${VIRTUAL_ENV}/bin/pip install -r /tmp/req-cpu.txt && \
     ${VIRTUAL_ENV}/bin/pip install --no-cache-dir ipykernel && \
     ${VIRTUAL_ENV}/bin/python -m ipykernel install --sys-prefix \
         --name pta --display-name "Python (pta)" && \
-    chmod -R a+rwX ${VIRTUAL_ENV}
+    bash /usr/local/bin/flatten_chmod_shared.sh ${VIRTUAL_ENV}
 WORKDIR ${SOFTWARE_DIR}
 CMD ["bash", "-lc", "source /opt/venvs/pta/bin/activate && exec bash"]
 
@@ -121,7 +155,7 @@ RUN ${VIRTUAL_ENV}/bin/pip install -r /tmp/req-gpu-cuda124.txt
 RUN ${VIRTUAL_ENV}/bin/pip install --no-cache-dir ipykernel && \
     ${VIRTUAL_ENV}/bin/python -m ipykernel install --sys-prefix \
         --name pta --display-name "Python (pta)" && \
-    chmod -R a+rwX ${VIRTUAL_ENV}
+    bash /usr/local/bin/flatten_chmod_shared.sh ${VIRTUAL_ENV}
 WORKDIR ${SOFTWARE_DIR}
 CMD ["bash", "-lc", "source /opt/venvs/pta/bin/activate && exec bash"]
 
@@ -138,7 +172,7 @@ RUN ${VIRTUAL_ENV}/bin/pip install -r /tmp/req-gpu-cuda128.txt
 RUN ${VIRTUAL_ENV}/bin/pip install --no-cache-dir ipykernel && \
     ${VIRTUAL_ENV}/bin/python -m ipykernel install --sys-prefix \
         --name pta --display-name "Python (pta)" && \
-    chmod -R a+rwX ${VIRTUAL_ENV}
+    bash /usr/local/bin/flatten_chmod_shared.sh ${VIRTUAL_ENV}
 WORKDIR ${SOFTWARE_DIR}
 CMD ["bash", "-lc", "source /opt/venvs/pta/bin/activate && exec bash"]
 
@@ -155,7 +189,7 @@ RUN ${VIRTUAL_ENV}/bin/pip install -r /tmp/req-gpu-cuda13.txt
 RUN ${VIRTUAL_ENV}/bin/pip install --no-cache-dir ipykernel && \
     ${VIRTUAL_ENV}/bin/python -m ipykernel install --sys-prefix \
         --name pta --display-name "Python (pta)" && \
-    chmod -R a+rwX ${VIRTUAL_ENV}
+    bash /usr/local/bin/flatten_chmod_shared.sh ${VIRTUAL_ENV}
 WORKDIR ${SOFTWARE_DIR}
 CMD ["bash", "-lc", "source /opt/venvs/pta/bin/activate && exec bash"]
 

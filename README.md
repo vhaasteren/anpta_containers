@@ -201,6 +201,24 @@ pip install -e .
 
 **Note:** If you don't provide `HOST_UID`/`HOST_GID`, the container will run with the default `anpta` user IDs. For proper file permissions on bind mounts, always provide these environment variables.
 
+Julia and Vela.jl
+-----------------
+
+All container variants include **Julia 1.11** (via juliaup) and **[Vela.jl](https://github.com/abhisrkckl/Vela.jl)** v0.1.5 for Bayesian pulsar timing, plus the **pyvela** Python interface.
+
+**Quick checks:**
+
+```bash
+julia --project=/opt/julia/project -e 'using Vela; println(Vela)'
+python -c 'from pyvela import __version__; print(__version__)'
+```
+
+**Jupyter kernels:** `Python (pta)` and `Julia (vela)` (both installed in the shared venv kernel directory).
+
+**Environment:** JuliaCall/pyvela integration requires `PYTHON_JULIACALL_HANDLE_SIGNALS=yes` and related variables; these are set in the image and devcontainer. Do not install Julia via conda inside this container.
+
+**Optional full test:** `julia --project=/opt/julia/project -e 'import Pkg; Pkg.test("Vela")'`
+
 Save the docker image
 ---------------------
 
@@ -381,14 +399,15 @@ Notes:
   ```
 
 **VS Code customizations:**
-- The devcontainer recommends installing useful extensions (Python, Black, Ruff, Jupyter, Pylance, YAML, GitLens).
+- The devcontainer recommends useful extensions (Python, Black, Ruff, Jupyter, Pylance, YAML, GitLens, Julia).
 - The Python venv is auto‑activated for interactive shells.
 - `ipykernel` is installed with `--sys-prefix` and registered as "Python (pta)" (kernel spec is in the venv, independent of `$HOME`).
+- `IJulia` is registered as "Julia (vela)" using the pinned Vela project at `/opt/julia/project`.
 
 **How to use:**
 1. Open the repo in VS Code with the "Dev Containers" extension installed.
 2. When prompted, "Reopen in Container" (or use the Command Palette: "Dev Containers: Reopen in Container").
-3. Select the kernel "Python (pta)" in Jupyter/Notebooks.
+3. Select the kernel "Python (pta)" or "Julia (vela)" in Jupyter/Notebooks.
 
 **Notes:**
 - The devcontainer is for interactive development only, not for CI or production (container user has sudo rights).

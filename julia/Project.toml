@@ -1,0 +1,19 @@
+name = "anpta-vela"
+version = "0.1.0"
+
+[deps]
+BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
+Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
+DoubleFloats = "497a8b3b-efae-58df-a0af-a86822472b78"
+GeometricUnits = "43c95830-f66f-43f3-8298-be5f3865d5b9"
+IJulia = "7073ff75-c697-5162-941a-fcdaad2a7d2a"
+JuliaFormatter = "98e50ef6-434e-11e9-1051-2b60c6c9e899"
+LocalRegistry = "89398ba2-070a-4b16-a995-9893c55d93cf"
+PythonCall = "6099a3de-0909-46bc-b1f4-468b9a2dfc0d"
+Vela = "e20ed1ff-b155-4b65-a650-1609b657a8ad"
+
+[sources]
+Vela = { url = "https://github.com/abhisrkckl/Vela.jl.git", rev = "v0.1.5" }
+
+[compat]
+julia = "1.11"
