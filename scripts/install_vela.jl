@@ -10,6 +10,7 @@ end
 
 function main()
     ENV["JULIA_CONDAPKG_BACKEND"] = "Null"
+    # Defense-in-depth: Pkg.precompile() must not bake QEMU-only CPU features.
     ENV["JULIA_CPU_TARGET"] = "generic"
     ensure_registries!()
     Pkg.instantiate()

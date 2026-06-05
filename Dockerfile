@@ -106,6 +106,9 @@ RUN ${VIRTUAL_ENV}/bin/pip install -r /tmp/req-pulsar.txt
 COPY julia/ /opt/julia/project/
 COPY scripts/build_vela.sh /usr/local/bin/
 COPY scripts/install_vela.jl /usr/local/bin/
+# Portable precompile for multi-arch: arm64 layers built under QEMU on amd64 hosts
+# see extra CPU features (SVE, SME, …) that real Apple Silicon lacks. Without a
+# pinned target, baked .ji/.so caches are rejected at runtime and juliacall fails.
 ENV JULIAUP_DEPOT_PATH=/opt/julia/juliaup \
     JULIA_DEPOT_PATH=/opt/julia/depot \
     JULIA_PROJECT=/opt/julia/project \

@@ -72,6 +72,7 @@
 #   --skip-env-check     Skip rootless / data-root / daemon checks
 #   --dry-run            Print build commands without executing them
 #   --no-cache           Do not import old registry cache (still exports cache)
+#   --no-cache-export    Do not upload registry cache (--cache-to); use if Hub 400 on cache PUT
 #   --no-push            Build only; do not upload to Docker Hub (see below)
 #   --variant NAME       Build only one variant (e.g. cpu, gpu-cuda128)
 #   --reconcile          Idempotent publish loop: skip done variants, retry only
@@ -95,6 +96,7 @@
 #   ./scripts/build_and_publish_multiarch.sh
 #   ./scripts/build_and_publish_multiarch.sh --no-push --variant cpu
 #   ./scripts/build_and_publish_multiarch.sh --variant cpu
+#   ./scripts/build_and_publish_multiarch.sh --no-cache --no-cache-export --variant cpu
 #   ./scripts/build_and_publish_multiarch.sh --reconcile
 #   ./scripts/build_and_publish_multiarch.sh --setup-rootless
 #   ./scripts/build_and_publish_multiarch.sh --dry-run
@@ -134,6 +136,9 @@ SETUP_ROOTLESS=false
 SKIP_ENV_CHECK=false
 DRY_RUN=false
 NO_CACHE=false
+# Skip --cache-to on push; Docker Hub sometimes returns 400 on cache blob PUT and
+# then cancels the whole build even though image layers were already uploaded.
+NO_CACHE_EXPORT=false
 PUSH_TO_HUB=true
 FILTER_VARIANT=""
 RECONCILE_MODE=false
@@ -1007,8 +1012,9 @@ build_and_push_variant() {
         cmd+=(--cache-from="type=registry,ref=${IMAGE_REPO}:${extra_cache_tag}")
       fi
     fi
-    if [[ "${VARIANT_NO_CACHE_EXPORT}" == "true" ]]; then
-      log_info "Skipping registry cache export (retry / --disable-cache-export-on-retry)"
+    # Cache export is optional for publishing; image --push still runs when skipped.
+    if [[ "${VARIANT_NO_CACHE_EXPORT}" == "true" || "$NO_CACHE_EXPORT" == "true" ]]; then
+      log_info "Skipping registry cache export (--no-cache-export / retry)"
     else
       cmd+=(--cache-to="type=registry,ref=${family_cache},mode=max")
     fi
@@ -1080,6 +1086,7 @@ parse_args() {
       --skip-env-check)   SKIP_ENV_CHECK=true ;;
       --dry-run)          DRY_RUN=true ;;
       --no-cache)         NO_CACHE=true ;;
+      --no-cache-export)  NO_CACHE_EXPORT=true ;;
       --no-push)          PUSH_TO_HUB=false ;;
       --variant)          FILTER_VARIANT="${2:?--variant requires a name}"; shift ;;
       --reconcile)        RECONCILE_MODE=true ;;

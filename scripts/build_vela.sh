@@ -21,6 +21,7 @@ fi
 
 export PATH="${JULIAUP_DEPOT_PATH}/bin:${PATH}"
 export JULIA_CONDAPKG_BACKEND=Null
+# Match Dockerfile: generic target survives QEMU arm64 build → native arm64 runtime.
 export JULIA_CPU_TARGET=generic
 
 "${JULIA_BIN}" /usr/local/bin/install_vela.jl
