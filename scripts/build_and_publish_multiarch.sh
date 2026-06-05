@@ -74,6 +74,12 @@
 #   --no-cache           Do not import old registry cache (still exports cache)
 #   --no-push            Build only; do not upload to Docker Hub (see below)
 #   --variant NAME       Build only one variant (e.g. cpu, gpu-cuda128)
+#   --reconcile          Idempotent publish loop: skip done variants, retry only
+#                        Docker Hub 400 cache-export failures (requires --push)
+#   --max-retries-400 N  Per-variant retry cap for 400 cache PUT (default: 3)
+#   --state-file PATH    Reconcile state file (default: .build-state.json)
+#   --retry-backoff-seconds N  Base backoff before retries (default: 60)
+#   --disable-cache-export-on-retry  Skip --cache-to on retry attempts
 #   --help               Show this help
 #
 # --no-push (build / test mode):
@@ -89,6 +95,7 @@
 #   ./scripts/build_and_publish_multiarch.sh
 #   ./scripts/build_and_publish_multiarch.sh --no-push --variant cpu
 #   ./scripts/build_and_publish_multiarch.sh --variant cpu
+#   ./scripts/build_and_publish_multiarch.sh --reconcile
 #   ./scripts/build_and_publish_multiarch.sh --setup-rootless
 #   ./scripts/build_and_publish_multiarch.sh --dry-run
 #
@@ -129,6 +136,18 @@ DRY_RUN=false
 NO_CACHE=false
 PUSH_TO_HUB=true
 FILTER_VARIANT=""
+RECONCILE_MODE=false
+MAX_RETRIES_400="${ANPTA_MAX_RETRIES_400:-3}"
+RETRY_BACKOFF_SECONDS="${ANPTA_RETRY_BACKOFF_SECONDS:-60}"
+DISABLE_CACHE_EXPORT_ON_RETRY="${ANPTA_DISABLE_CACHE_EXPORT_ON_RETRY:-false}"
+STATE_FILE=""
+
+# Set per-build by reconcile loop (optional)
+VARIANT_NO_CACHE_EXPORT=false
+VARIANT_BUILD_LOG=""
+
+# Reconcile state (JSON string, mutated via jq)
+STATE_JSON=""
 
 # Local image name prefix when --no-push (docker load / docker run)
 readonly LOCAL_IMAGE_PREFIX="${LOCAL_IMAGE_PREFIX:-anpta}"
@@ -554,6 +573,389 @@ image_tags_for_variant() {
   fi
 }
 
+# ------------------------------------------------------------------------------
+# Reconcile: Hub verification, error classification, state
+# ------------------------------------------------------------------------------
+
+resolve_state_file() {
+  if [[ -z "$STATE_FILE" ]]; then
+    STATE_FILE="${REPO_ROOT}/.build-state.json"
+  fi
+}
+
+state_init_empty() {
+  STATE_JSON="$(jq -n \
+    --arg version "$VERSION" \
+    --arg repo "$IMAGE_REPO" \
+    --arg updated "$(date -Iseconds)" \
+    '{version: $version, image_repo: $repo, updated_at: $updated, variants: {}}')"
+}
+
+state_load() {
+  resolve_state_file
+  if [[ -f "$STATE_FILE" ]]; then
+    STATE_JSON="$(cat "$STATE_FILE")"
+    local stored_version stored_repo
+    stored_version="$(echo "$STATE_JSON" | jq -r '.version // empty')"
+    stored_repo="$(echo "$STATE_JSON" | jq -r '.image_repo // empty')"
+    if [[ "$stored_version" != "$VERSION" || "$stored_repo" != "$IMAGE_REPO" ]]; then
+      log_warn "State file stale (version=${stored_version:-?}, repo=${stored_repo:-?}) — resetting"
+      state_init_empty
+    else
+      log_info "Loaded reconcile state from ${STATE_FILE}"
+    fi
+  else
+    state_init_empty
+    log_info "Initialized new reconcile state at ${STATE_FILE}"
+  fi
+}
+
+state_save() {
+  resolve_state_file
+  echo "$STATE_JSON" | jq '.' > "${STATE_FILE}.tmp" && mv "${STATE_FILE}.tmp" "$STATE_FILE"
+}
+
+state_get_variant_field() {
+  local key="$1"
+  local field="$2"
+  echo "$STATE_JSON" | jq -r --arg k "$key" --arg f "$field" '.variants[$k][$f] // empty'
+}
+
+state_get_retries() {
+  local key="$1"
+  local retries
+  retries="$(state_get_variant_field "$key" "retries_400")"
+  [[ -n "$retries" ]] && echo "$retries" || echo "0"
+}
+
+state_set_variant() {
+  local key="$1"
+  local status="$2"
+  local retries="${3:-0}"
+  local err_class="${4:-}"
+  local excerpt="${5:-}"
+  local digest="${6:-}"
+
+  STATE_JSON="$(echo "$STATE_JSON" | jq \
+    --arg k "$key" \
+    --arg status "$status" \
+    --argjson retries "$retries" \
+    --arg err_class "$err_class" \
+    --arg excerpt "$excerpt" \
+    --arg digest "$digest" \
+    --arg updated "$(date -Iseconds)" \
+    '.variants[$k] = {
+      status: $status,
+      retries_400: $retries,
+      last_error_class: $err_class,
+      last_error_excerpt: $excerpt,
+      last_digest: $digest,
+      updated_at: $updated
+    } | .updated_at = $updated')"
+}
+
+hub_imagetools_output() {
+  local tag="$1"
+  docker buildx imagetools inspect "$tag" 2>/dev/null
+}
+
+hub_tag_digest() {
+  local tag="$1"
+  local out
+  out="$(hub_imagetools_output "$tag")" || return 1
+  echo "$out" | awk '/^Digest:/{print $2; exit}'
+}
+
+hub_tag_platforms() {
+  local tag="$1"
+  local out
+  out="$(hub_imagetools_output "$tag")" || return 1
+  echo "$out" | awk '/Platform:/{print $2}' | grep -v '^unknown/unknown$' | sort -u || true
+}
+
+hub_tag_valid() {
+  local tag="$1"
+  local expected_platforms="$2"
+  local digest out
+
+  digest="$(hub_tag_digest "$tag" 2>/dev/null || true)"
+  [[ -n "$digest" ]] || return 1
+
+  out="$(hub_imagetools_output "$tag" 2>/dev/null || true)"
+  [[ -n "$out" ]] || return 1
+
+  local -a want=()
+  local p found have
+  IFS=',' read -ra want <<< "$expected_platforms"
+  for p in "${want[@]}"; do
+    found=false
+    while IFS= read -r have; do
+      [[ "$have" == "$p" ]] && found=true && break
+    done < <(echo "$out" | awk '/Platform:/{print $2}' | grep -v '^unknown/unknown$' || true)
+    [[ "$found" == "true" ]] || return 1
+  done
+  return 0
+}
+
+classify_build_error() {
+  local log_file="$1"
+  [[ -f "$log_file" ]] || { echo "non_retryable_other"; return 0; }
+
+  if grep -qE 'error writing layer blob|unexpected status from PUT request|400 Bad request' "$log_file" \
+     && grep -q 'registry-1.docker.io' "$log_file"; then
+    echo "retryable_registry_400_cache_put"
+  else
+    echo "non_retryable_other"
+  fi
+}
+
+test_error_classifier() {
+  local tmp
+  tmp="$(mktemp)"
+  cat > "$tmp" <<'EOF'
+#47 ERROR: error writing layer blob: unexpected status from PUT request to https://registry-1.docker.io/v2/vhaasteren/anpta/blobs/uploads/abc: 400 Bad request
+EOF
+  [[ "$(classify_build_error "$tmp")" == "retryable_registry_400_cache_put" ]] \
+    || die "classifier self-test failed: expected retryable_registry_400_cache_put"
+  echo "apt failed with Invalid cross-device link" > "$tmp"
+  [[ "$(classify_build_error "$tmp")" == "non_retryable_other" ]] \
+    || die "classifier self-test failed: expected non_retryable_other"
+  rm -f "$tmp"
+  log_info "Error classifier self-test passed"
+}
+
+reconcile_variant_done() {
+  local key="$1"
+  [[ "$(state_get_variant_field "$key" "status")" == "done" ]]
+}
+
+all_reconcile_variants_done() {
+  local row key
+  for row in "${VARIANT_MATRIX[@]}"; do
+    IFS='|' read -r key _ _ _ _ _ _ _ <<< "$row"
+    if should_build_variant "$key" && ! reconcile_variant_done "$key"; then
+      return 1
+    fi
+  done
+  return 0
+}
+
+log_round_summary() {
+  local round="$1"
+  local row key status retries
+  local done=0 pending=0 blocked=0 failed=0 exhausted=0
+
+  for row in "${VARIANT_MATRIX[@]}"; do
+    IFS='|' read -r key _ _ _ _ _ _ extra_cache <<< "$row"
+    should_build_variant "$key" || continue
+
+    status="$(state_get_variant_field "$key" "status")"
+    retries="$(state_get_variant_field "$key" "retries_400")"
+    [[ -n "$retries" ]] || retries=0
+
+    case "$status" in
+      done) done=$((done + 1)) ;;
+      failed_nonretryable) failed=$((failed + 1)) ;;
+      retry_exhausted) exhausted=$((exhausted + 1)) ;;
+      *)
+        if [[ -n "$extra_cache" ]] && ! reconcile_variant_done "$extra_cache"; then
+          blocked=$((blocked + 1))
+        else
+          pending=$((pending + 1))
+        fi
+        ;;
+    esac
+    log_info "  ${key}: status=${status:-pending} retries_400=${retries}"
+  done
+
+  log_info "Round ${round} summary: done=${done} pending=${pending} blocked=${blocked} failed=${failed} retry_exhausted=${exhausted}"
+}
+
+print_final_blocker_report() {
+  local row key status err_class excerpt retries
+  log_error "=== Reconcile blockers ==="
+  for row in "${VARIANT_MATRIX[@]}"; do
+    IFS='|' read -r key _ _ _ _ _ _ _ <<< "$row"
+    should_build_variant "$key" || continue
+    status="$(state_get_variant_field "$key" "status")"
+    [[ "$status" == "done" ]] && continue
+    err_class="$(state_get_variant_field "$key" "last_error_class")"
+    excerpt="$(state_get_variant_field "$key" "last_error_excerpt")"
+    retries="$(state_get_variant_field "$key" "retries_400")"
+    log_error "  ${key}: status=${status:-pending} retries_400=${retries:-0} class=${err_class:-n/a}"
+    [[ -n "$excerpt" ]] && log_error "    ${excerpt}"
+  done
+  log_error "State file: ${STATE_FILE:-${REPO_ROOT}/.build-state.json}"
+}
+
+run_reconcile_loop() {
+  [[ "$PUSH_TO_HUB" == "true" ]] || die "--reconcile requires push mode (omit --no-push)"
+
+  state_load
+  test_error_classifier
+
+  local round=0
+  local max_rounds=50
+  local progress
+
+  while (( round < max_rounds )); do
+    round=$((round + 1))
+    progress=0
+
+    log_info "=== Reconcile round ${round} ==="
+
+    local row key target platforms base_image tag_suffix moving_tag cache_ref extra_cache
+    for row in "${VARIANT_MATRIX[@]}"; do
+      IFS='|' read -r key target platforms base_image tag_suffix moving_tag cache_ref extra_cache <<< "$row"
+      should_build_variant "$key" || continue
+
+      local versioned_tag moving_ref
+      mapfile -t _tags < <(image_tags_for_variant "$tag_suffix" "$moving_tag")
+      versioned_tag="${_tags[0]}"
+      moving_ref="${_tags[1]}"
+
+      if reconcile_variant_done "$key"; then
+        if hub_tag_valid "$versioned_tag" "$platforms"; then
+          continue
+        fi
+        log_warn "${key}: state=done but Hub tag invalid — re-queueing"
+        state_set_variant "$key" "pending" "$(state_get_retries "$key")" "stale_state" \
+          "immutable tag missing or platforms mismatch" ""
+        state_save
+      fi
+
+      if [[ -n "$extra_cache" ]] && ! reconcile_variant_done "$extra_cache"; then
+        log_info "${key}: blocked (dependency ${extra_cache} not done)"
+        continue
+      fi
+
+      if hub_tag_valid "$versioned_tag" "$platforms"; then
+        local digest
+        digest="$(hub_tag_digest "$versioned_tag")"
+        log_info "${key}: already on Hub (${versioned_tag}, ${digest:0:19}...)"
+        state_set_variant "$key" "done" "$(state_get_retries "$key")" "" "" "$digest"
+        state_save
+        progress=$((progress + 1))
+        continue
+      fi
+
+      local retries
+      retries="$(state_get_retries "$key")"
+
+      if (( retries >= MAX_RETRIES_400 )); then
+        log_error "${key}: retry budget exceeded (${retries}/${MAX_RETRIES_400})"
+        state_set_variant "$key" "retry_exhausted" "$retries" \
+          "retryable_registry_400_cache_put" "max retries exceeded" ""
+        state_save
+        continue
+      fi
+
+      if (( retries > 0 )); then
+        local backoff=$(( RETRY_BACKOFF_SECONDS * (2 ** (retries - 1)) ))
+        log_info "${key}: backing off ${backoff}s before retry ${retries}/${MAX_RETRIES_400}"
+        sleep "$backoff"
+      fi
+
+      VARIANT_NO_CACHE_EXPORT=false
+      if (( retries > 0 )) && [[ "$DISABLE_CACHE_EXPORT_ON_RETRY" == "true" ]]; then
+        VARIANT_NO_CACHE_EXPORT=true
+        log_info "${key}: cache export disabled for this retry"
+      fi
+
+      local log_dir="${REPO_ROOT}/.build-logs"
+      mkdir -p "$log_dir"
+      VARIANT_BUILD_LOG="${log_dir}/${key}-round${round}.log"
+
+      log_info "${key}: building and pushing..."
+      log_info "  versioned: ${versioned_tag}"
+      log_info "  moving:    ${moving_ref}"
+
+      if [[ "$DRY_RUN" == "true" ]]; then
+        build_and_push_variant "$key" "$target" "$platforms" "$base_image" \
+          "$tag_suffix" "$moving_tag" "$cache_ref" "$extra_cache"
+        VARIANT_BUILD_LOG=""
+        continue
+      fi
+
+      local build_log="${VARIANT_BUILD_LOG}"
+      set +e
+      build_and_push_variant "$key" "$target" "$platforms" "$base_image" \
+        "$tag_suffix" "$moving_tag" "$cache_ref" "$extra_cache"
+      local build_rc=$?
+      set -e
+      VARIANT_BUILD_LOG=""
+
+      if [[ $build_rc -eq 0 ]]; then
+        if hub_tag_valid "$versioned_tag" "$platforms"; then
+          local digest
+          digest="$(hub_tag_digest "$versioned_tag")"
+          log_info "${key}: published and verified (${digest:0:19}...)"
+          state_set_variant "$key" "done" "$retries" "" "" "$digest"
+          progress=$((progress + 1))
+        else
+          state_set_variant "$key" "failed_nonretryable" "$retries" \
+            "verify_failed" "post-push platform check failed for ${versioned_tag}" ""
+          state_save
+          print_final_blocker_report
+          die "Post-push verification failed for ${key}"
+        fi
+      else
+        local err_class excerpt
+        err_class="$(classify_build_error "$build_log")"
+        excerpt="$(tail -8 "$build_log" 2>/dev/null | tr '\n' ' ' | head -c 240)"
+
+        if [[ "$err_class" == "retryable_registry_400_cache_put" ]]; then
+          retries=$((retries + 1))
+          log_warn "${key}: retryable registry 400 error (attempt ${retries}/${MAX_RETRIES_400})"
+          if (( retries >= MAX_RETRIES_400 )); then
+            state_set_variant "$key" "retry_exhausted" "$retries" "$err_class" "$excerpt" ""
+          else
+            state_set_variant "$key" "pending" "$retries" "$err_class" "$excerpt" ""
+          fi
+        else
+          state_set_variant "$key" "failed_nonretryable" "$retries" "$err_class" "$excerpt" ""
+          state_save
+          print_final_blocker_report
+          die "Non-retryable build failure for ${key} (${err_class})"
+        fi
+      fi
+
+      state_save
+    done
+
+    echo ""
+    log_round_summary "$round"
+    echo ""
+
+    if [[ "$DRY_RUN" == "true" ]]; then
+      log_info "=== Dry-run reconcile complete (no builds executed) ==="
+      return 0
+    fi
+
+    if all_reconcile_variants_done; then
+      log_info "=== All requested variants reconciled successfully ==="
+      log_info "Images: https://hub.docker.com/r/${DOCKERHUB_USER}/anpta"
+      log_info "State:  ${STATE_FILE}"
+      return 0
+    fi
+
+    local status
+    status="$(echo "$STATE_JSON" | jq -r '[.variants[].status] | map(select(. == "failed_nonretryable")) | length')"
+    if [[ "$status" != "0" ]]; then
+      print_final_blocker_report
+      die "Reconcile stopped due to non-retryable failure"
+    fi
+
+    if (( progress == 0 )); then
+      print_final_blocker_report
+      die "No progress in reconcile round ${round}"
+    fi
+  done
+
+  print_final_blocker_report
+  die "Reconcile exceeded maximum rounds (${max_rounds})"
+}
+
 build_and_push_variant() {
   local key="$1"
   local target="$2"
@@ -599,12 +1001,15 @@ build_and_push_variant() {
       if [[ -n "$extra_cache_tag" ]]; then
         cmd+=(--cache-from="type=registry,ref=${IMAGE_REPO}:${extra_cache_tag}")
       fi
-      cmd+=(--cache-to="type=registry,ref=${family_cache},mode=max")
     else
       log_info "Skipping registry cache import (--no-cache)"
       if [[ -n "$extra_cache_tag" ]]; then
         cmd+=(--cache-from="type=registry,ref=${IMAGE_REPO}:${extra_cache_tag}")
       fi
+    fi
+    if [[ "${VARIANT_NO_CACHE_EXPORT}" == "true" ]]; then
+      log_info "Skipping registry cache export (retry / --disable-cache-export-on-retry)"
+    else
       cmd+=(--cache-to="type=registry,ref=${family_cache},mode=max")
     fi
     cmd+=(--push)
@@ -633,12 +1038,23 @@ build_and_push_variant() {
     return 0
   fi
 
-  local start_ts end_ts elapsed
+  local start_ts end_ts elapsed build_rc
   start_ts="$(date +%s)"
-  "${cmd[@]}"
+  if [[ -n "${VARIANT_BUILD_LOG:-}" ]]; then
+    "${cmd[@]}" 2>&1 | tee "${VARIANT_BUILD_LOG}"
+    build_rc="${PIPESTATUS[0]}"
+  else
+    "${cmd[@]}"
+    build_rc=$?
+  fi
   end_ts="$(date +%s)"
   elapsed=$(( end_ts - start_ts ))
-  log_info "Finished ${key} in $(( elapsed / 3600 ))h $(( (elapsed % 3600) / 60 ))m $(( elapsed % 60 ))s"
+  if [[ $build_rc -eq 0 ]]; then
+    log_info "Finished ${key} in $(( elapsed / 3600 ))h $(( (elapsed % 3600) / 60 ))m $(( elapsed % 60 ))s"
+  else
+    log_error "Build failed for ${key} after $(( elapsed / 3600 ))h $(( (elapsed % 3600) / 60 ))m $(( elapsed % 60 ))s (exit ${build_rc})"
+  fi
+  return "$build_rc"
 }
 
 run_all_builds() {
@@ -666,6 +1082,11 @@ parse_args() {
       --no-cache)         NO_CACHE=true ;;
       --no-push)          PUSH_TO_HUB=false ;;
       --variant)          FILTER_VARIANT="${2:?--variant requires a name}"; shift ;;
+      --reconcile)        RECONCILE_MODE=true ;;
+      --max-retries-400)  MAX_RETRIES_400="${2:?--max-retries-400 requires a number}"; shift ;;
+      --state-file)       STATE_FILE="${2:?--state-file requires a path}"; shift ;;
+      --retry-backoff-seconds) RETRY_BACKOFF_SECONDS="${2:?--retry-backoff-seconds requires a number}"; shift ;;
+      --disable-cache-export-on-retry) DISABLE_CACHE_EXPORT_ON_RETRY=true ;;
       --help|-h)          usage ;;
       *)
         die "Unknown option: $1 (use --help)"
@@ -694,7 +1115,14 @@ main() {
   log_info "anpta multi-arch build"
   log_info "  Host:     $(hostname)"
   log_info "  Version:  ${VERSION}"
-  if [[ "$PUSH_TO_HUB" == "true" ]]; then
+  if [[ "$RECONCILE_MODE" == "true" ]]; then
+    log_info "  Mode:     reconcile and push to Docker Hub"
+    log_info "  Image:    ${IMAGE_REPO}"
+    log_info "  Retries:  max_400=${MAX_RETRIES_400}, backoff=${RETRY_BACKOFF_SECONDS}s"
+    if [[ "$DISABLE_CACHE_EXPORT_ON_RETRY" == "true" ]]; then
+      log_info "  Retries:  cache export disabled on retry attempts"
+    fi
+  elif [[ "$PUSH_TO_HUB" == "true" ]]; then
     log_info "  Mode:     build and push to Docker Hub"
     log_info "  Image:    ${IMAGE_REPO}"
   else
@@ -733,7 +1161,12 @@ main() {
   fi
 
   echo ""
-  if [[ "$PUSH_TO_HUB" == "true" ]]; then
+  if [[ "$RECONCILE_MODE" == "true" ]]; then
+    log_info "Starting reconcile loop (skips published immutable tags; retries 400 cache PUT only)..."
+    echo ""
+    run_reconcile_loop
+    return 0
+  elif [[ "$PUSH_TO_HUB" == "true" ]]; then
     log_info "Starting builds and push to Docker Hub (many hours for all variants)..."
   else
     log_info "Starting local builds only (--no-push; many hours for all variants)..."

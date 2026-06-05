@@ -2,3 +2,5 @@
 .cache/
 .pycache/
 .pyuser/
+.build-state.json
+.build-logs/
