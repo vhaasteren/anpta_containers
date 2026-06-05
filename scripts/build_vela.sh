@@ -21,6 +21,7 @@ fi
 
 export PATH="${JULIAUP_DEPOT_PATH}/bin:${PATH}"
 export JULIA_CONDAPKG_BACKEND=Null
+export JULIA_CPU_TARGET=generic
 
 "${JULIA_BIN}" /usr/local/bin/install_vela.jl
 

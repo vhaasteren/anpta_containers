@@ -117,7 +117,8 @@ ENV JULIAUP_DEPOT_PATH=/opt/julia/juliaup \
     PYTHON_JULIACALL_EXE=/opt/julia/juliaup/bin/julia \
     PYTHON_JULIACALL_PROJECT=/opt/julia/project \
     JULIA_NUM_THREADS=auto \
-    PYTHON_JULIACALL_THREADS=auto
+    PYTHON_JULIACALL_THREADS=auto \
+    JULIA_CPU_TARGET=generic
 RUN bash /usr/local/bin/build_vela.sh
 COPY requirements/vela.txt /tmp/req-vela.txt
 COPY scripts/patch_pyvela_priors.py /usr/local/bin/

@@ -10,6 +10,7 @@ end
 
 function main()
     ENV["JULIA_CONDAPKG_BACKEND"] = "Null"
+    ENV["JULIA_CPU_TARGET"] = "generic"
     ensure_registries!()
     Pkg.instantiate()
     Pkg.precompile()
