@@ -6,7 +6,7 @@ astropy==7.1.1
 healpy==1.18.1
 cython==3.1.6
 xarray==2025.10.1
-arviz==0.22.0
+arviz[preview]==0.22.0
 rich==14.2.0
 tqdm==4.67.1
 ipdb==0.13.13
