@@ -100,7 +100,11 @@ ENV PATH="${SOFTWARE_DIR}/psrchive/install/bin:${PATH}" \
 
 # ---------- Pulsar ecosystem ----------
 COPY requirements/pulsar.txt /tmp/req-pulsar.txt
-RUN ${VIRTUAL_ENV}/bin/pip install -r /tmp/req-pulsar.txt
+COPY scripts/install_holodeck.sh /usr/local/bin/
+# holodeck-gw: stale cython<3 pin + Python 3.12 long() in cyutils.pyx (see install_holodeck.sh).
+RUN bash /usr/local/bin/install_holodeck.sh /tmp/req-pulsar.txt && \
+    grep -v '^holodeck-gw' /tmp/req-pulsar.txt > /tmp/req-pulsar-rest.txt && \
+    ${VIRTUAL_ENV}/bin/pip install -r /tmp/req-pulsar-rest.txt
 
 # ---------- Julia + Vela.jl ----------
 COPY julia/ /opt/julia/project/
