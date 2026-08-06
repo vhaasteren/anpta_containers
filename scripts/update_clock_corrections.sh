@@ -56,6 +56,30 @@ done
 # new site files such as gmrt2gps.clk.
 cp -a "${CLOCK_SRC}/." "${CLOCK_DST}/"
 
+# Curated PINT override: Tempo2-format .clk from T2runtime, Tempo-format
+# time_*.dat from tempo/clock. Do not reuse Tempo2's retained time_*.dat —
+# those can be wrongly ordered / stale, and PINT_CLOCK_OVERRIDE would prefer them.
+PINT_CLOCK_DST="${SOFTWARE_DIR}/pint-clock-override"
+TEMPO_CLOCK_SRC="${CLOCK_REPO}/tempo/clock"
+
+rm -rf "${PINT_CLOCK_DST}"
+mkdir -p "${PINT_CLOCK_DST}"
+
+shopt -s nullglob
+clk_files=("${CLOCK_SRC}"/*.clk)
+dat_files=("${TEMPO_CLOCK_SRC}"/time_*.dat)
+if [ "${#clk_files[@]}" -eq 0 ]; then
+  echo "No Tempo2 .clk files in ${CLOCK_SRC}" >&2
+  exit 1
+fi
+if [ "${#dat_files[@]}" -eq 0 ]; then
+  echo "No Tempo time_*.dat files in ${TEMPO_CLOCK_SRC}" >&2
+  exit 1
+fi
+cp -a "${clk_files[@]}" "${PINT_CLOCK_DST}/"
+cp -a "${dat_files[@]}" "${PINT_CLOCK_DST}/"
+shopt -u nullglob
+
 # Leave an auditable record of the exact clock snapshot installed in the image.
 repo_git rev-parse HEAD \
   > "${SOFTWARE_DIR}/CLOCK_CORRECTIONS_REVISION"

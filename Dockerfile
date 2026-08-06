@@ -72,10 +72,7 @@ ENV PATH="${SOFTWARE_DIR}/psrcat_tar:${PATH}"
 RUN bash /usr/local/bin/build_psrcat.sh
 
 # ---------- tempo2 ----------
-# PINT_CLOCK_OVERRIDE: keep PINT on the same Tempo2 clock tree we install
-# (IPTA snapshot via update_clock_corrections.sh), not PINT's bundled/cache copy.
 ENV TEMPO2=${SOFTWARE_DIR}/tempo2/T2runtime \
-    PINT_CLOCK_OVERRIDE=${SOFTWARE_DIR}/tempo2/T2runtime/clock \
     PATH="${SOFTWARE_DIR}/tempo2/install/bin:${SOFTWARE_DIR}/tempo2/T2runtime/bin:${PATH}" \
     CPPFLAGS="-I${SOFTWARE_DIR}/tempo2/install/include -I${CALCEPH}/install/include ${CPPFLAGS:-}" \
     LDFLAGS="-L${SOFTWARE_DIR}/tempo2/install/lib -L${CALCEPH}/install/lib ${LDFLAGS:-}" \
@@ -139,7 +136,9 @@ RUN ${VIRTUAL_ENV}/bin/pip install -r /tmp/req-vela.txt && \
     ${VIRTUAL_ENV}/bin/python -c 'from pyvela import __version__; print("pyvela", __version__)'
 
 # ---------- Clock corrections ----------
+# PINT gets a curated override (Tempo2 .clk + Tempo time_*.dat), not TEMPO2/clock.
 RUN bash /usr/local/bin/update_clock_corrections.sh
+ENV PINT_CLOCK_OVERRIDE=${SOFTWARE_DIR}/pint-clock-override
 
 # ---------- System-level sitecustomize: ensures user site-packages are always visible ----------
 RUN bash /usr/local/bin/setup_sitecustomize.sh
