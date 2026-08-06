@@ -72,7 +72,10 @@ ENV PATH="${SOFTWARE_DIR}/psrcat_tar:${PATH}"
 RUN bash /usr/local/bin/build_psrcat.sh
 
 # ---------- tempo2 ----------
+# PINT_CLOCK_OVERRIDE: keep PINT on the same Tempo2 clock tree we install
+# (IPTA snapshot via update_clock_corrections.sh), not PINT's bundled/cache copy.
 ENV TEMPO2=${SOFTWARE_DIR}/tempo2/T2runtime \
+    PINT_CLOCK_OVERRIDE=${SOFTWARE_DIR}/tempo2/T2runtime/clock \
     PATH="${SOFTWARE_DIR}/tempo2/install/bin:${SOFTWARE_DIR}/tempo2/T2runtime/bin:${PATH}" \
     CPPFLAGS="-I${SOFTWARE_DIR}/tempo2/install/include -I${CALCEPH}/install/include ${CPPFLAGS:-}" \
     LDFLAGS="-L${SOFTWARE_DIR}/tempo2/install/lib -L${CALCEPH}/install/lib ${LDFLAGS:-}" \
