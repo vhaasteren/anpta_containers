@@ -136,6 +136,8 @@ RUN ${VIRTUAL_ENV}/bin/pip install -r /tmp/req-vela.txt && \
     ${VIRTUAL_ENV}/bin/python -c 'from pyvela import __version__; print("pyvela", __version__)'
 
 # ---------- Clock corrections ----------
+# Curated DR3/EPTA overlay (clockfiles/) is merged after the public IPTA snapshot.
+COPY clockfiles/ ${SOFTWARE_DIR}/dr3-clock-overlay/
 # PINT gets a curated override (Tempo2 .clk + Tempo time_*.dat), not TEMPO2/clock.
 RUN bash /usr/local/bin/update_clock_corrections.sh
 ENV PINT_CLOCK_OVERRIDE=${SOFTWARE_DIR}/pint-clock-override

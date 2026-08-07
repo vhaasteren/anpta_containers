@@ -80,6 +80,79 @@ cp -a "${clk_files[@]}" "${PINT_CLOCK_DST}/"
 cp -a "${dat_files[@]}" "${PINT_CLOCK_DST}/"
 shopt -u nullglob
 
+if [ -f "${CLOCK_SRC}/leap.sec" ]; then
+  cp -a "${CLOCK_SRC}/leap.sec" "${PINT_CLOCK_DST}/"
+fi
+
+# Curated IPTA-DR3 / EPTA overlay (COPY clockfiles/ → dr3-clock-overlay).
+# Selective install only — never blind-copy the whole DR3/EPTA dump.
+DR3_CLOCKS="${SOFTWARE_DIR}/dr3-clock-overlay"
+if [ ! -d "${DR3_CLOCKS}" ]; then
+  echo "DR3 clock overlay directory missing: ${DR3_CLOCKS}" >&2
+  exit 1
+fi
+
+DR3_STUB_CLK=(
+  fast2gps.clk
+  lofar2gps.clk
+  nenufar2gps.clk
+  eflfrhba2gps.clk
+  julfrhba2gps.clk
+  ndlfrhba2gps.clk
+  polfrhba2gps.clk
+  tblfrhba2gps.clk
+  uwlfrhba2gps.clk
+)
+for f in "${DR3_STUB_CLK[@]}"; do
+  src="${DR3_CLOCKS}/${f}"
+  if [ -f "${src}" ]; then
+    cp -a "${src}" "${CLOCK_DST}/"
+    cp -a "${src}" "${PINT_CLOCK_DST}/"
+  fi
+done
+
+if [ -f "${DR3_CLOCKS}/time_fast.dat" ]; then
+  cp -a "${DR3_CLOCKS}/time_fast.dat" "${CLOCK_DST}/"
+  cp -a "${DR3_CLOCKS}/time_fast.dat" "${PINT_CLOCK_DST}/"
+fi
+
+if [ ! -f "${DR3_CLOCKS}/effix2gps.clk" ]; then
+  echo "Missing required EPTA effix2gps.clk in ${DR3_CLOCKS}" >&2
+  exit 1
+fi
+cp -a "${DR3_CLOCKS}/effix2gps.clk" "${CLOCK_DST}/"
+cp -a "${DR3_CLOCKS}/effix2gps.clk" "${PINT_CLOCK_DST}/"
+
+if [ -f "${DR3_CLOCKS}/effedd2gps.clk" ]; then
+  cp -a "${DR3_CLOCKS}/effedd2gps.clk" "${CLOCK_DST}/"
+  cp -a "${DR3_CLOCKS}/effedd2gps.clk" "${PINT_CLOCK_DST}/"
+fi
+
+effix_tip="$(
+  awk '
+    /^[[:space:]]*#/ { next }
+    /^[[:space:]]*$/ { next }
+    {
+      if ($1 ~ /^[+-]?[0-9]+(\.[0-9]+)?$/) {
+        mjd = $1 + 0
+        if (mjd > tip) tip = mjd
+      }
+    }
+    END {
+      if (tip == "") exit 1
+      printf "%.6f\n", tip
+    }
+  ' "${CLOCK_DST}/effix2gps.clk"
+)"
+if awk -v tip="${effix_tip}" 'BEGIN { exit !(tip > 59294.5) }'; then
+  :
+else
+  echo "effix2gps.clk tip MJD ${effix_tip} is not past public IPTA freeze (59294.5)" >&2
+  exit 1
+fi
+
 # Leave an auditable record of the exact clock snapshot installed in the image.
 repo_git rev-parse HEAD \
   > "${SOFTWARE_DIR}/CLOCK_CORRECTIONS_REVISION"
+ls -1 "${DR3_CLOCKS}" \
+  > "${SOFTWARE_DIR}/DR3_CLOCK_OVERLAY_MANIFEST"
