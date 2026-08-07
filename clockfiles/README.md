@@ -11,10 +11,15 @@ the image; do not dump the full DR3/EPTA clock tree into this directory.
 
 ## DR3-only site stubs (zero corrections, MJD 55000–65000)
 
+Installed only when the public IPTA snapshot does not already ship the file
+(so real upstream corrections are never overwritten):
+
 - `fast2gps.clk`, `lofar2gps.clk`, `nenufar2gps.clk`
 - `eflfrhba2gps.clk`, `julfrhba2gps.clk`, `ndlfrhba2gps.clk`,
   `polfrhba2gps.clk`, `tblfrhba2gps.clk`, `uwlfrhba2gps.clk`
 - `time_fast.dat`
+
+Build fails if any of these are still missing after the public + overlay merge.
 
 ## Optional
 

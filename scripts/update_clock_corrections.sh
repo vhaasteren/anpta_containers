@@ -92,7 +92,9 @@ if [ ! -d "${DR3_CLOCKS}" ]; then
   exit 1
 fi
 
-DR3_STUB_CLK=(
+# Site stubs fill gaps only. Never overwrite a file already present from the
+# public IPTA snapshot (once upstream ships real corrections, those win).
+DR3_STUBS=(
   fast2gps.clk
   lofar2gps.clk
   nenufar2gps.clk
@@ -102,20 +104,22 @@ DR3_STUB_CLK=(
   polfrhba2gps.clk
   tblfrhba2gps.clk
   uwlfrhba2gps.clk
+  time_fast.dat
 )
-for f in "${DR3_STUB_CLK[@]}"; do
+for f in "${DR3_STUBS[@]}"; do
   src="${DR3_CLOCKS}/${f}"
-  if [ -f "${src}" ]; then
-    cp -a "${src}" "${CLOCK_DST}/"
-    cp -a "${src}" "${PINT_CLOCK_DST}/"
-  fi
+  for dst_dir in "${CLOCK_DST}" "${PINT_CLOCK_DST}"; do
+    if [ ! -f "${dst_dir}/${f}" ]; then
+      if [ ! -f "${src}" ]; then
+        echo "Missing DR3 clock ${f} (needed in ${dst_dir}, not in public IPTA)" >&2
+        exit 1
+      fi
+      cp -a "${src}" "${dst_dir}/"
+    fi
+  done
 done
 
-if [ -f "${DR3_CLOCKS}/time_fast.dat" ]; then
-  cp -a "${DR3_CLOCKS}/time_fast.dat" "${CLOCK_DST}/"
-  cp -a "${DR3_CLOCKS}/time_fast.dat" "${PINT_CLOCK_DST}/"
-fi
-
+# Asterix tip (ipta/pulsar-clock-corrections#38): force-replace only.
 if [ ! -f "${DR3_CLOCKS}/effix2gps.clk" ]; then
   echo "Missing required EPTA effix2gps.clk in ${DR3_CLOCKS}" >&2
   exit 1
@@ -127,6 +131,17 @@ if [ -f "${DR3_CLOCKS}/effedd2gps.clk" ]; then
   cp -a "${DR3_CLOCKS}/effedd2gps.clk" "${CLOCK_DST}/"
   cp -a "${DR3_CLOCKS}/effedd2gps.clk" "${PINT_CLOCK_DST}/"
 fi
+
+# Final tree must contain every DR3-required clock (public and/or overlay).
+DR3_REQUIRED=("${DR3_STUBS[@]}" effix2gps.clk)
+for f in "${DR3_REQUIRED[@]}"; do
+  for dst_dir in "${CLOCK_DST}" "${PINT_CLOCK_DST}"; do
+    if [ ! -f "${dst_dir}/${f}" ]; then
+      echo "Required clock missing after merge: ${dst_dir}/${f}" >&2
+      exit 1
+    fi
+  done
+done
 
 effix_tip="$(
   awk '
